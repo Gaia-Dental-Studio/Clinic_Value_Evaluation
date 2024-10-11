@@ -1,0 +1,7 @@
+[server]
+enableXsrfProtection=false
+
+[theme]
+base="light"
+primaryColor="#398dff"
+secondaryBackgroundColor="#e4edff"

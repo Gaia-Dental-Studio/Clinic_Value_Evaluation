@@ -1,0 +1,392 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+from model import ModelClinicValue
+import pickle
+import cvxpy as cp
+
+
+# Set the page title
+st.title("Clinic Value Evaluation Model")
+
+with st.container(border=True):
+    
+    st.markdown("## Baseline Clinic Value Model")
+    st.write("Based on average performance of available data")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        base_ebit = 250000
+        base_tangible_asset = 32331
+        st.metric("EBIT", f"$ {base_ebit:,.0f}", help="Net Sales - COGS - Operating Expenses")
+        st.metric("Net Sales Growth Rate", "5%", help="Yearly")
+        st.metric("Tangible Assets", f"$ {base_tangible_asset:,.0f}")
+        
+    with col2:
+        base_ebit_ratio = 0.22
+        st.metric("EBIT Ratio", f"{base_ebit_ratio * 100:.2f}%", help="EBIT / Net Sales")
+        base_ebit_multiple = 2.5
+        st.metric("EBIT Multiple", base_ebit_multiple)
+        st.metric("Equipment Usage Ratio", "50%", help="Percentage of equipment usage from its expected lifetime")
+
+# File upload widget
+uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
+
+# Initialize the ModelClinicValue class
+model = ModelClinicValue({})
+
+# If a file is uploaded, update the model variables with data from the file
+if uploaded_file:
+    model.update_variable_from_uploaded_file(uploaded_file)
+
+# Section for manual input of company variables
+st.header("Set Company Variable")
+st.write("Please input manually the following variables to evaluate the value of your company in case no file to upload.")
+
+# Dictionary to store the variables
+company_variables = {}
+
+# Category: Profit & Loss
+with st.expander("Profit & Loss", expanded=True):
+    st.write("The values of the following variables are yearly amounts.")
+
+    # Sub Category: Gross Profit
+    st.markdown("### Gross Profit")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        net_sales = st.number_input("Net Sales", value=float(model.net_sales) if model.net_sales is not None else 0.0)
+        company_variables["Net Sales"] = net_sales
+    with col2:
+        cogs = st.number_input("COGS", value=float(model.cogs) if model.cogs is not None else 0.0)
+        company_variables["COGS"] = cogs
+    with col3:
+        trading_income = st.number_input("Trading Income", value=float(model.trading_income) if model.trading_income is not None else 0.0)
+        company_variables["Trading Income"] = trading_income
+        
+    net_sales_growth = st.number_input("Net Sales Growth Rate", value=float(model.net_sales_growth) if model.net_sales_growth is not None else 0.0)
+
+    # Sub Category: Other Income
+    st.markdown("### Other Income")
+    col4, col5 = st.columns(2)
+    with col4:
+        other_income = st.number_input("Other Income", value=float(model.other_income) if model.other_income is not None else 0.0)
+        company_variables["Other Income"] = other_income
+    with col5:
+        interest_revenue = st.number_input("Interest Revenue of Bank", value=float(model.interest_revenue) if model.interest_revenue is not None else 0.0)
+        company_variables["Interest Revenue of Bank"] = interest_revenue
+
+    # Sub Category: Operating Expense
+    st.markdown("### Operating Expense")
+    col7, col8 = st.columns(2)
+    with col7:
+        operational_expense = st.number_input("Operating Expense", value=float(model.operational_expense) if model.operational_expense is not None else 0.0)
+        company_variables["Operational Expense"] = operational_expense
+    with col8:
+        other_expense = st.number_input("Other Expense", value=float(model.other_expense) if model.other_expense is not None else 0.0)
+        company_variables["Other Expense"] = other_expense
+
+    # Sub Category: Depreciation
+    st.markdown("### Depreciation")
+    col9, col10 = st.columns(2)
+    with col9:
+        clinic_depreciation = st.number_input("Depreciation of Equipment Clinic Expense", value=float(model.clinic_depreciation) if model.clinic_depreciation is not None else 0.0)
+        company_variables["Depreciation of Equipment Clinic Expense"] = clinic_depreciation
+    with col10:
+        non_clinic_depreciation = st.number_input("Depreciation of Equipment Non Clinic Expense", value=float(model.non_clinic_depreciation) if model.non_clinic_depreciation is not None else 0.0)
+        company_variables["Depreciation of Equipment Non Clinic Expense"] = non_clinic_depreciation
+
+    # Sub Category: Tax
+    st.markdown("### Tax")
+    col11, col12 = st.columns(2)
+    with col11:
+        bank_tax_expense = st.number_input("Bank Tax Expense", value=float(model.bank_tax_expense) if model.bank_tax_expense is not None else 0.0)
+        company_variables["Bank Tax Expense"] = bank_tax_expense
+    with col12:
+        other_tax = st.number_input("Other Tax", value=float(model.other_tax) if model.other_tax is not None else 0.0)
+        company_variables["Other Tax"] = other_tax
+
+# Balance Sheet Section
+with st.expander("Balance Sheet", expanded=True):
+    st.markdown("### Fixed Assets")
+    tangible_assets = st.number_input("Tangible Assets (PP&E)", value=float(model.tangible_assets) if model.tangible_assets is not None else 0.0)
+    company_variables["Tangible Assets (PP&E)"] = tangible_assets
+
+
+    
+    
+with st.expander("Cash Flow", expanded=True):
+    st.markdown("### Net Cash Flow")
+    st.write("Please fill in the monthly net cash flow, leave blank if not applicable.")
+
+    # Use the model's net_cash_flow if available, otherwise create a default DataFrame
+    if model.net_cash_flow is not None:
+        net_cash_flow = model.net_cash_flow
+    else:
+        net_cash_flow = pd.DataFrame({
+            'Jan': [None],
+            'Feb': [None],
+            'Mar': [None],
+            'Apr': [None],
+            'May': [None],
+            'Jun': [None],
+            'Jul': [None],
+            'Aug': [None],
+            'Sep': [None],
+            'Oct': [None],
+            'Nov': [None],
+            'Dec': [None]
+        }, index=['2019', '2020', '2021', '2022', '2023'])
+
+    # Display the DataFrame using st.data_editor
+    net_cash_flow_editor = st.data_editor(net_cash_flow, use_container_width=True, num_rows='dynamic')
+    company_variables['Net Cash Flow'] = net_cash_flow_editor
+    
+    net_cash_flow.to_csv('net_cash_flow.csv')
+    
+with st.expander("Other Variables", expanded=True):
+    
+    st.markdown("### Equipment Life")
+    
+
+
+    # Create a DataFrame with the new columns
+    data_df = pd.read_csv('equipment_data.csv')
+
+    # Display the DataFrame using st.data_editor with modified column configurations
+    company_variables['Equipment_Life'] = st.data_editor(
+        data_df,
+        column_config={
+            "Equipment": st.column_config.SelectboxColumn(
+                "Equipment",
+                help="Select the equipment or write your own value",
+                options=[
+            "Intra Oral Camera",
+            "Bleaching Unit",
+            "Ultrasonic Scaler",
+            "Light Cure",
+            "Dental Unit",
+            "Portable Xrays",
+            "Endomotor",
+            "Autoclaves",
+            "Ultrasonic Cleaner",
+            "Water Tank",
+            "Prophylaxis Hand Piece",
+            "Handpiece Set",
+            "Compressor",
+            "Apex Locator",
+            "Dental Loupe",
+            "Portable Light",
+            "Camera DSLR",
+            "Water Tank Hose",
+            "Sealing Machine",
+            "Xray Sensor"
+        ],
+                required=True,
+            ),
+            "Own?": st.column_config.CheckboxColumn(
+                "Own?",
+                help="Does your clinic own the specific equipment?",
+            ),
+            "Expected Lifetime": st.column_config.NumberColumn(
+                "Expected Lifetime",
+                help="Expected operational lifetime of the equipment in years", disabled=True
+            ),
+            "Current Lifetime Usage": st.column_config.NumberColumn(
+                "Current Lifetime Usage",
+                help="The number of years the equipment has been in use (on average if multiple units)",
+            ),
+        },
+        hide_index=True,
+        use_container_width=True,
+        num_rows='dynamic',
+        column_order=["Equipment", "Own?", "Expected Lifetime", "Current Lifetime Usage"]
+    )
+    
+    st.markdown("### Dentist Availability")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        number_of_dentist = st.number_input("Number of Dentist", value=2, step=1)
+        
+    with col2:
+        projected_number_of_dentist = st.number_input("Projected Number of Dentist", value=2, step=1)
+        
+    possibility_existing_dentist_leaving = st.checkbox("Possibility of Existing Dentist Leaving", value=False, help="Check if there is a possibility of existing dentist leaving the clinic, despite the projected number of dentist will still be equal to current number of dentist.")
+
+    # company_variables['Equipment_Life'].to_csv('equipment_life.csv')
+    
+# Button to trigger the evaluation
+if st.button("Evaluate"):
+    
+    st.markdown("## Variable Summary")
+    
+    with st.container(border=True):
+    
+        st.markdown("### Profit & Loss")
+        st.write("Yearly based")
+        
+        with st.expander("General Variables", expanded=False):
+    
+            col1, col2, col3 = st.columns(3)
+            
+            
+            
+            model = ModelClinicValue(company_variables)
+            
+            with col1:
+                st.metric("Net Sales", f"$ {company_variables.get('Net Sales', 0):,.0f}")
+                st.metric("COGS", f"$ {company_variables.get('COGS', 0):,.0f}")
+                st.metric("Trading Income", f"$ {company_variables.get('Trading Income', 0):,.0f}")
+                st.metric("Other Income", f"$ {company_variables.get('Other Income', 0):,.0f}")
+            
+            with col2:
+                st.metric("Interest Revenue of Bank", f"$ {company_variables.get('Interest Revenue of Bank', 0):,.0f}")
+                st.metric("Advertising & Promotion Expense", f"$ {company_variables.get('Advertising & Promotion Expense', 0):,.0f}")
+                st.metric("Operational Expense", f"$ {company_variables.get('Operational Expense', 0):,.0f}")
+                st.metric("Other Expense", f"$ {company_variables.get('Other Expense', 0):,.0f}")
+            
+            with col3:
+                st.metric("Depreciation of Equipment Clinic Expense", f"$ {company_variables.get('Depreciation of Equipment Clinic Expense', 0):,.0f}")
+                st.metric("Depreciation of Equipment Non Clinic Expense", f"$ {company_variables.get('Depreciation of Equipment Non Clinic Expense', 0):,.0f}")
+                st.metric("Bank Tax Expense", f"$ {company_variables.get('Bank Tax Expense', 0):,.0f}")
+                st.metric("Other Tax", f"$ {company_variables.get('Other Tax', 0):,.0f}")
+            
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("EBITDA", f"$ {model.ebitda:,.0f}")
+        
+        with col2:
+            st.metric("EBIT", f"$ {model.ebit:,.0f}", delta=f"$  {model.ebit - base_ebit:,.0f}")
+            
+        with col3:
+            st.metric("EBIT Ratio", f"{model.ebit_ratio * 100:.2f}%", delta=f"{(model.ebit_ratio - base_ebit_ratio)*100:.2f}%")
+        
+        
+    with st.container(border=True):
+        st.markdown("### Balance Sheet")
+        
+        st.metric("Tangible Assets (PP&E)", f"$ {company_variables.get('Tangible Assets (PP&E)', 0):,.0f}")
+        
+    with st.container(border=True):
+    
+        st.markdown("### Cash Flow")
+        st.write("Monthly Based")
+    
+        average_cashflow, std_deviation, trend_coefficient = model.analyze_cash_flow()
+    
+        col1, col2, col3 = st.columns(3)
+    
+
+        with col1:
+            st.metric("Net Cash Flow Average", f"$ {average_cashflow:,.0f}")
+    
+        with col2:
+            st.metric("Net Cash Flow Standard Deviation", f"$ {std_deviation:,.0f}")
+        
+        with col3:
+            st.metric("Net Cash Flow Trend Coefficient", f"{trend_coefficient:,.2f}")
+        
+    with st.container(border=True):
+        st.markdown("### Other Variables")
+        
+        equipment_usage_ratio, total_equipments, total_remaining_value = model.calculate_equipment_usage_ratio()
+        
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Equipment Usage Ratio", f"{equipment_usage_ratio * 100:.2f}%")
+            
+        with col2:
+            st.metric("Total Equipments", f"{total_equipments}")
+            
+            
+            
+    # Create the output_variables dictionary
+    output_variables = {
+        'Net Sales': company_variables.get('Net Sales', 0),
+        'COGS': company_variables.get('COGS', 0),
+        'Trading Income': company_variables.get('Trading Income', 0),
+        'Other Income': company_variables.get('Other Income', 0),
+        'Interest Revenue of Bank': company_variables.get('Interest Revenue of Bank', 0),
+        'Advertising & Promotion Expense': company_variables.get('Advertising & Promotion Expense', 0),
+        'Operational Expense': company_variables.get('Operational Expense', 0),
+        'Other Expense': company_variables.get('Other Expense', 0),
+        'Depreciation of Equipment Clinic Expense': company_variables.get('Depreciation of Equipment Clinic Expense', 0),
+        'Depreciation of Equipment Non Clinic Expense': company_variables.get('Depreciation of Equipment Non Clinic Expense', 0),
+        'Bank Tax Expense': company_variables.get('Bank Tax Expense', 0),
+        'Other Tax': company_variables.get('Other Tax', 0),
+        'Tangible Assets (PP&E)': company_variables.get('Tangible Assets (PP&E)', 0),
+        'Net Cash Flow Average': average_cashflow,
+        'Net Cash Flow Standard Deviation': std_deviation,
+        'Net Cash Flow Trend Coefficient': trend_coefficient,
+        'Equipment Usage Ratio': equipment_usage_ratio,
+        'Total Equipments': total_equipments,
+        'Net Sales Growth': net_sales_growth,
+        'Total Remaining Value': total_remaining_value,
+        'Number of Dentist': number_of_dentist,
+        'Projected Number of Dentist': projected_number_of_dentist,
+        'Possibility Existing Dentist Leaving': possibility_existing_dentist_leaving
+    }
+
+    # Convert the output_variables dictionary to a DataFrame and save as CSV
+    output_df = pd.DataFrame([output_variables])
+    output_df.to_csv('output_variables.csv', index=False)
+    
+    
+    st.divider()
+    
+    st.markdown("## Clinic Value")
+
+    ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
+    clinic_valuation = ebit_multiple * model.ebit
+    equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'])
+    ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Number of Dentist'], output_variables['Projected Number of Dentist'], output_variables['Possibility Existing Dentist Leaving'])
+    
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("EBIT Multiple", f"{ebit_multiple:.2f}", delta=f"{ebit_multiple - base_ebit_multiple:.2f}")
+        
+        
+    with col2:
+        st.metric("Clinic Valuation", f"$ {clinic_valuation:,.0f}")
+        st.caption("Clinic Valuation = EBIT Multiple * EBIT")
+        
+        
+        
+        
+        
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Adjustment due Equipments", f"$ {equipment_adjusting_value:,.0f}", help="Adjustment due to equipment usage ratio and specific equipment availability within the clinic")
+        
+    with col2:
+        st.metric("Clinic Valuation Adjusted", f"$ {clinic_valuation + equipment_adjusting_value:,.0f}")
+        st.caption("Clinic Valuation Adjusted = Clinic Valuation + Adjustment due Equipments")
+    
+    
+
+
+
+    # # Open the CVXPY coefficients from the pickle file
+    # with open('cvxpy_coefficients_non_negative.pkl', 'rb') as f:
+    #     coefficients_df = pickle.load(f)
+
+    # # Ensure the coefficients are in a NumPy array format
+    # coefficients = coefficients_df['Coefficient'].values
+    # intercept_value = coefficients_df['Intercept'].iloc[0]
+
+    # # Calculate the prediction for the first row manually using the dot product
+    # # Include the intercept in the calculation
+    # prediction = np.dot(output_df.iloc[0].values, coefficients) + intercept_value
+
+    # st.metric("Estimated Price", f"$ {prediction:,.0f}")
+
+    # with st.expander("Show Coefficient"):
+    #     st.dataframe(coefficients_df)
