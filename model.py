@@ -13,7 +13,6 @@ class ModelClinicValue:
         self.trading_income = company_variables.get('Trading Income', 0)
         self.other_income = company_variables.get('Other Income', 0)
         self.interest_revenue = company_variables.get('Interest Revenue of Bank', 0)
-        self.ad_promotion_expense = company_variables.get('Advertising & Promotion Expense', 0)
         self.operational_expense = company_variables.get('Operational Expense', 0)
         self.other_expense = company_variables.get('Other Expense', 0)
         self.clinic_depreciation = company_variables.get('Depreciation of Equipment Clinic Expense', 0)
@@ -21,13 +20,17 @@ class ModelClinicValue:
         self.bank_tax_expense = company_variables.get('Bank Tax Expense', 0)
         self.other_tax = company_variables.get('Other Tax', 0)
         self.tangible_assets = company_variables.get('Tangible Assets (PP&E)', 0)
-        self.general_expense = self.ad_promotion_expense + self.operational_expense + self.other_expense
+        self.general_expense = self.operational_expense + self.other_expense
         self.ebitda = self.net_sales + self.cogs + self.trading_income + self.other_income + self.general_expense
         self.depreciation_total = self.clinic_depreciation + self.non_clinic_depreciation
         self.tax_total = self.bank_tax_expense + self.other_tax
         self.ebit = self.ebitda + self.depreciation_total + self.tax_total
         self.ebit_ratio = self.ebit / self.net_sales if self.net_sales > 0 else None
         self.net_sales_growth = company_variables.get('Net Sales Growth', 0)
+        self.relative_variability_net_sales = company_variables.get('Relative Variation of Net Sales', 0)
+        self.number_of_patients = company_variables.get('Number of Active Patients', 0)
+        self.relative_variability_patient_spending = company_variables.get('Relative Variation of Patient Spending', 0)
+        self.potential_existing_dentist_leaving = company_variables.get('Potential Existing Dentist Leaving', 0)
 
         # Extract DataFrames from the company variables dictionary
         self.net_cash_flow = company_variables.get('Net Cash Flow', None)
@@ -75,6 +78,8 @@ class ModelClinicValue:
     def calculate_equipment_usage_ratio(self):
         # Filter the equipment that the clinic owns (where 'Own?' is True)
         owned_equipment = self.equipment_life[self.equipment_life['Own?'] == True].copy()
+        
+        owned_equipment['Current Lifetime Usage'] = owned_equipment.apply(lambda row: row['Current Lifetime Usage'] if row['Current Lifetime Usage'] <= row['Expected Lifetime'] else row['Expected Lifetime'], axis=1)
 
         # Create new columns for total expected lifetime and total current lifetime usage
         owned_equipment['Total Expected Lifetime'] = owned_equipment['Quantity'] * owned_equipment['Expected Lifetime']
@@ -97,13 +102,12 @@ class ModelClinicValue:
 
         return equipment_usage_ratio, total_equipments, total_remaining_value
     
-    def equipment_adjusting_value(self, total_remaining_value):
+    def equipment_adjusting_value(self, total_remaining_value, baseline_tangible_assets, baseline_usage_ratio):
         
-        tangible_assets = self.tangible_assets
-        depreciation_total = tangible_assets * 0.5
+        baseline_depreciation_total = baseline_tangible_assets * baseline_usage_ratio
 
         
-        adjustment_value = total_remaining_value - (tangible_assets - depreciation_total)
+        adjustment_value = total_remaining_value - (baseline_tangible_assets - baseline_depreciation_total)
         
         return adjustment_value
     
@@ -123,21 +127,24 @@ class ModelClinicValue:
             self.trading_income = variable_dict.get('Trading Income', 0)
             self.other_income = variable_dict.get('Other Income', 0)
             self.interest_revenue = variable_dict.get('Interest Revenue of Bank', 0)
-            self.ad_promotion_expense = variable_dict.get('Advertising & Promotion Expense', 0)
             self.operational_expense = variable_dict.get('Operational Expense', 0)
             self.other_expense = variable_dict.get('Other Expense', 0)
             self.clinic_depreciation = variable_dict.get('Depreciation of Equipment Clinic Expense', 0)
             self.non_clinic_depreciation = variable_dict.get('Depreciation of Equipment Non Clinic Expense', 0)
             self.bank_tax_expense = variable_dict.get('Bank Tax Expense', 0)
             self.other_tax = variable_dict.get('Other Tax', 0)
-            self.tangible_assets = variable_dict.get('PP&E (Tangible Assets)', 0)
-            self.general_expense = self.ad_promotion_expense + self.operational_expense + self.other_expense
+            self.tangible_assets = variable_dict.get('Tangible Assets (PP&E)', 0)
+            self.general_expense = self.operational_expense + self.other_expense
             self.ebitda = self.net_sales + self.cogs + self.trading_income + self.other_income + self.general_expense
             self.depreciation_total = self.clinic_depreciation + self.non_clinic_depreciation
             self.tax_total = self.bank_tax_expense + self.other_tax
             self.ebit = self.ebitda + self.depreciation_total + self.tax_total
             self.ebit_ratio = self.ebit / self.net_sales if self.net_sales > 0 else None
             self.net_sales_growth = variable_dict.get('Net Sales Growth', 0)
+            self.relative_variability_net_sales = variable_dict.get('Relative Variation of Net Sales', 0)
+            self.number_of_patients = variable_dict.get('Number of Active Patients', 0)
+            self.relative_variability_patient_spending = variable_dict.get('Relative Variation of Patient Spending', 0)
+            self.potential_existing_dentist_leaving = variable_dict.get('Potential Existing Dentist Leaving', 0)
 
         # Read the net_cash_flow data from the 'net_cash_flow' sheet
         net_cash_flow_df = pd.read_excel(uploaded_file, sheet_name='net_cash_flow', index_col=0)
@@ -188,10 +195,61 @@ class ModelClinicValue:
         
     def ebit_multiple_adjustment_due_dentist(self, ebit_multiple, number_of_dentist, projected_number_of_dentist, possibility_existing_dentist_leaving):
         
-        weight_coefficient = 0.5 if possibility_existing_dentist_leaving else 1
+        weight_coefficient = 0.6 if possibility_existing_dentist_leaving else 1
         
         if number_of_dentist <= projected_number_of_dentist:
             ebit_multiple = ebit_multiple * (projected_number_of_dentist / number_of_dentist * weight_coefficient)
         
+        
+        return ebit_multiple
+    
+    def ebit_multiple_adjustment_due_net_sales_variation(self, ebit_multiple, relative_variability_net_sales):
+        
+        df_logic = pd.read_csv('net_sales_variability_assumption.csv')
+        
+        def get_adjustment(variability):
+            for index, row in df_logic.iterrows():
+                lower_bound = row['Lower Value']
+                upper_bound = row['Upper Value']
+                
+                # Special case for the first row to handle zero inclusion
+                if index == 0 and lower_bound <= variability < upper_bound:
+                    return row['Adjustment to Multiple']
+                # General case for all other rows
+                elif lower_bound < variability <= upper_bound:
+                    return row['Adjustment to Multiple']
+            
+            # Return None or a default value if no condition matches
+            return None
+        
+        adjustment_to_multiple = get_adjustment(relative_variability_net_sales)
+        ebit_multiple = ebit_multiple * adjustment_to_multiple if adjustment_to_multiple is not None else ebit_multiple
+        
+        return ebit_multiple
+    
+    
+    def ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(self, ebit_multiple, number_of_active_patients, relative_variability_patient_spending):
+        
+        df_number_patient = pd.read_csv('number_patient_assumption.csv')
+        df_patient_spending_variability = pd.read_csv('patient_spending_variability_assumption.csv')
+        
+        def get_adjustment(variability, df):
+            for index, row in df.iterrows():
+                lower_bound = row['Lower Value']
+                upper_bound = row['Upper Value']
+                
+                # Special case for the first row to handle zero inclusion
+                if index == 0 and lower_bound <= variability < upper_bound:
+                    return row['Adjustment to Multiple']
+                # General case for all other rows
+                elif lower_bound < variability <= upper_bound:
+                    return row['Adjustment to Multiple']
+            
+            # Return None or a default value if no condition matches
+            return None
+        
+        adjustment_to_multiple_due_number_patient = get_adjustment(number_of_active_patients, df_number_patient)
+        adjustment_to_multiple_due_patient_spending_variability = get_adjustment(relative_variability_patient_spending, df_patient_spending_variability)
+        ebit_multiple = ebit_multiple * adjustment_to_multiple_due_number_patient * adjustment_to_multiple_due_patient_spending_variability
         
         return ebit_multiple

@@ -18,18 +18,33 @@ with st.container(border=True):
     
     with col1:
         base_ebit = 250000
-        base_tangible_asset = 32331
+        base_tangible_asset = 80826.5
+        base_net_sales_growth = 0.1
+        base_number_of_active_patients = 1045
         st.metric("EBIT", f"$ {base_ebit:,.0f}", help="Net Sales - COGS - Operating Expenses")
-        st.metric("Net Sales Growth Rate", "5%", help="Yearly")
+        st.metric("Net Sales Growth Rate", f"{base_net_sales_growth * 100:.1f}%", help="Yearly")
         st.metric("Tangible Assets", f"$ {base_tangible_asset:,.0f}")
+        
+        st.metric("Number of Active Patients", base_number_of_active_patients, help="Number of active unique patients in the clinic for the last one year")
+        
         
     with col2:
         base_ebit_ratio = 0.22
         st.metric("EBIT Ratio", f"{base_ebit_ratio * 100:.2f}%", help="EBIT / Net Sales")
-        base_ebit_multiple = 2.5
-        st.metric("EBIT Multiple", base_ebit_multiple)
-        st.metric("Equipment Usage Ratio", "50%", help="Percentage of equipment usage from its expected lifetime")
+        base_relative_variability_net_sales = 0.15
+        base_equipment_usage_ratio = 0.5
+        base_relative_variability_patient_spending = 0.15
+        
+        st.metric("Relative Variability of Net Sales", f"{base_relative_variability_net_sales * 100:.0f}%", help="Standard Deviation of Net Sales / Mean Net Sales. Net Sales here is in monthly terms")
+        st.metric("Equipment Usage Ratio", f"{base_equipment_usage_ratio * 100:.2f}%", help="Percentage of equipment usage from its expected lifetime")
+        
+        st.metric("Relative Variability of Patient Spending", f"{base_relative_variability_patient_spending * 100:.0f}%", help="Standard Deviation of Patient Spending / Mean Patient Spending. Patient Spending here is the yearly spending of each active unique patients")
+        
+        
 
+    base_ebit_multiple = 2.5
+    st.metric("EBIT Multiple", base_ebit_multiple)
+    
 # File upload widget
 uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
 
@@ -64,7 +79,13 @@ with st.expander("Profit & Loss", expanded=True):
         trading_income = st.number_input("Trading Income", value=float(model.trading_income) if model.trading_income is not None else 0.0)
         company_variables["Trading Income"] = trading_income
         
-    net_sales_growth = st.number_input("Net Sales Growth Rate", value=float(model.net_sales_growth) if model.net_sales_growth is not None else 0.0)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        net_sales_growth = st.number_input("Net Sales Growth Rate", value=float(model.net_sales_growth) if model.net_sales_growth is not None else 0.0)
+
+    with col2:
+        relative_variability_net_sales = st.number_input("Relative Variability of Net Sales", value=float(model.relative_variability_net_sales) if model.relative_variability_net_sales is not None else 0.0)
 
     # Sub Category: Other Income
     st.markdown("### Other Income")
@@ -107,42 +128,42 @@ with st.expander("Profit & Loss", expanded=True):
         company_variables["Other Tax"] = other_tax
 
 # Balance Sheet Section
-with st.expander("Balance Sheet", expanded=True):
-    st.markdown("### Fixed Assets")
-    tangible_assets = st.number_input("Tangible Assets (PP&E)", value=float(model.tangible_assets) if model.tangible_assets is not None else 0.0)
-    company_variables["Tangible Assets (PP&E)"] = tangible_assets
+# with st.expander("Balance Sheet", expanded=True):
+#     st.markdown("### Fixed Assets")
+#     tangible_assets = st.number_input("Tangible Assets (PP&E)", value=float(model.tangible_assets) if model.tangible_assets is not None else 0.0)
+#     company_variables["Tangible Assets (PP&E)"] = tangible_assets
 
 
     
     
-with st.expander("Cash Flow", expanded=True):
-    st.markdown("### Net Cash Flow")
-    st.write("Please fill in the monthly net cash flow, leave blank if not applicable.")
+# with st.expander("Cash Flow", expanded=True):
+#     st.markdown("### Net Cash Flow")
+#     st.write("Please fill in the monthly net cash flow, leave blank if not applicable.")
 
-    # Use the model's net_cash_flow if available, otherwise create a default DataFrame
-    if model.net_cash_flow is not None:
-        net_cash_flow = model.net_cash_flow
-    else:
-        net_cash_flow = pd.DataFrame({
-            'Jan': [None],
-            'Feb': [None],
-            'Mar': [None],
-            'Apr': [None],
-            'May': [None],
-            'Jun': [None],
-            'Jul': [None],
-            'Aug': [None],
-            'Sep': [None],
-            'Oct': [None],
-            'Nov': [None],
-            'Dec': [None]
-        }, index=['2019', '2020', '2021', '2022', '2023'])
+#     # Use the model's net_cash_flow if available, otherwise create a default DataFrame
+#     if model.net_cash_flow is not None:
+#         net_cash_flow = model.net_cash_flow
+#     else:
+#         net_cash_flow = pd.DataFrame({
+#             'Jan': [None],
+#             'Feb': [None],
+#             'Mar': [None],
+#             'Apr': [None],
+#             'May': [None],
+#             'Jun': [None],
+#             'Jul': [None],
+#             'Aug': [None],
+#             'Sep': [None],
+#             'Oct': [None],
+#             'Nov': [None],
+#             'Dec': [None]
+#         }, index=['2019', '2020', '2021', '2022', '2023'])
 
-    # Display the DataFrame using st.data_editor
-    net_cash_flow_editor = st.data_editor(net_cash_flow, use_container_width=True, num_rows='dynamic')
-    company_variables['Net Cash Flow'] = net_cash_flow_editor
+#     # Display the DataFrame using st.data_editor
+#     net_cash_flow_editor = st.data_editor(net_cash_flow, use_container_width=True, num_rows='dynamic')
+#     company_variables['Net Cash Flow'] = net_cash_flow_editor
     
-    net_cash_flow.to_csv('net_cash_flow.csv')
+#     net_cash_flow.to_csv('net_cash_flow.csv')
     
 with st.expander("Other Variables", expanded=True):
     
@@ -203,6 +224,9 @@ with st.expander("Other Variables", expanded=True):
         column_order=["Equipment", "Own?", "Expected Lifetime", "Current Lifetime Usage"]
     )
     
+    selected_equipment = company_variables['Equipment_Life'][company_variables['Equipment_Life']['Own?'] == True]
+    company_variables["Tangible Assets (PP&E)"] = (selected_equipment['Quantity'] * selected_equipment['Price']).sum()
+
     st.markdown("### Dentist Availability")
     
     col1, col2 = st.columns(2)
@@ -213,8 +237,20 @@ with st.expander("Other Variables", expanded=True):
     with col2:
         projected_number_of_dentist = st.number_input("Projected Number of Dentist", value=2, step=1)
         
-    possibility_existing_dentist_leaving = st.checkbox("Possibility of Existing Dentist Leaving", value=False, help="Check if there is a possibility of existing dentist leaving the clinic, despite the projected number of dentist will still be equal to current number of dentist.")
+    
+    possibility_existing_dentist_leaving = st.checkbox("Possibility of Existing Dentist Leaving", value=model.potential_existing_dentist_leaving if model.potential_existing_dentist_leaving is not None else False, help="Check if there is a possibility of existing dentist leaving the clinic, despite the projected number of dentist will still be equal to current number of dentist.")
 
+
+    st.markdown("### Customer Based Variables")
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        number_of_active_patients = st.number_input("Number of Active Patients", value=int(model.number_of_patients) if model.number_of_patients is not None else 0, step=1, help='Number of Active Unique Patient on yearly average')
+        
+    with col2:
+        relative_variability_patient_spending = st.number_input("Relative Variability of Patient Spending", value=float(model.relative_variability_patient_spending) if model.relative_variability_patient_spending is not None else 0.0, help='Coefficient of Variation of Patient Spending')
+    
     # company_variables['Equipment_Life'].to_csv('equipment_life.csv')
     
 # Button to trigger the evaluation
@@ -259,50 +295,69 @@ if st.button("Evaluate"):
             st.metric("EBITDA", f"$ {model.ebitda:,.0f}")
         
         with col2:
-            st.metric("EBIT", f"$ {model.ebit:,.0f}", delta=f"$  {model.ebit - base_ebit:,.0f}")
+            st.metric("EBIT", f"$ {model.ebit:,.0f}", delta=f"{model.ebit - base_ebit:,.0f}")
             
         with col3:
             st.metric("EBIT Ratio", f"{model.ebit_ratio * 100:.2f}%", delta=f"{(model.ebit_ratio - base_ebit_ratio)*100:.2f}%")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Net Sales Growth", f"{net_sales_growth * 100:.2f}%", delta=f"{(net_sales_growth - base_net_sales_growth)*100:.2f}%")
+            
+        with col2:
+            st.metric("Relative Variability of Net Sales", f"{relative_variability_net_sales * 100:.0f}%", delta=f"{(relative_variability_net_sales - base_relative_variability_net_sales)*100:.0f}%")
         
         
     with st.container(border=True):
         st.markdown("### Balance Sheet")
         
-        st.metric("Tangible Assets (PP&E)", f"$ {company_variables.get('Tangible Assets (PP&E)', 0):,.0f}")
+        tangible_asset_delta = company_variables.get('Tangible Assets (PP&E)', 0) - base_tangible_asset
+        st.metric("Tangible Assets (PP&E)", f"$ {company_variables.get('Tangible Assets (PP&E)', 0):,.0f}", delta=tangible_asset_delta)
         
-    with st.container(border=True):
+    # with st.container(border=True):
     
-        st.markdown("### Cash Flow")
-        st.write("Monthly Based")
+    #     st.markdown("### Cash Flow")
+    #     st.write("Monthly Based")
     
-        average_cashflow, std_deviation, trend_coefficient = model.analyze_cash_flow()
+    #     average_cashflow, std_deviation, trend_coefficient = model.analyze_cash_flow()
     
-        col1, col2, col3 = st.columns(3)
+    #     col1, col2, col3 = st.columns(3)
     
 
-        with col1:
-            st.metric("Net Cash Flow Average", f"$ {average_cashflow:,.0f}")
+    #     with col1:
+    #         st.metric("Net Cash Flow Average", f"$ {average_cashflow:,.0f}")
     
-        with col2:
-            st.metric("Net Cash Flow Standard Deviation", f"$ {std_deviation:,.0f}")
+    #     with col2:
+    #         st.metric("Net Cash Flow Standard Deviation", f"$ {std_deviation:,.0f}")
         
-        with col3:
-            st.metric("Net Cash Flow Trend Coefficient", f"{trend_coefficient:,.2f}")
+    #     with col3:
+    #         st.metric("Net Cash Flow Trend Coefficient", f"{trend_coefficient:,.2f}")
         
     with st.container(border=True):
         st.markdown("### Other Variables")
         
+        st.markdown('#### Equipments')
         equipment_usage_ratio, total_equipments, total_remaining_value = model.calculate_equipment_usage_ratio()
         
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Equipment Usage Ratio", f"{equipment_usage_ratio * 100:.2f}%")
+            st.metric("Equipment Usage Ratio", f"{equipment_usage_ratio * 100:.2f}%", delta=f"{(equipment_usage_ratio - base_equipment_usage_ratio)*100:.2f}%")
             
         with col2:
             st.metric("Total Equipments", f"{total_equipments}")
             
+        st.markdown('#### Customer Based')
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Number of Active Patients", f"{number_of_active_patients}", delta=f"{number_of_active_patients - base_number_of_active_patients}")
+            
+        with col2:
+            st.metric("Relative Variation of Patient Spending", f"{relative_variability_patient_spending * 100:.0f}%", delta=f"{(relative_variability_patient_spending - base_relative_variability_patient_spending)*100:.0f}%")
             
             
     # Create the output_variables dictionary
@@ -320,16 +375,19 @@ if st.button("Evaluate"):
         'Bank Tax Expense': company_variables.get('Bank Tax Expense', 0),
         'Other Tax': company_variables.get('Other Tax', 0),
         'Tangible Assets (PP&E)': company_variables.get('Tangible Assets (PP&E)', 0),
-        'Net Cash Flow Average': average_cashflow,
-        'Net Cash Flow Standard Deviation': std_deviation,
-        'Net Cash Flow Trend Coefficient': trend_coefficient,
+        # 'Net Cash Flow Average': average_cashflow,
+        # 'Net Cash Flow Standard Deviation': std_deviation,
+        # 'Net Cash Flow Trend Coefficient': trend_coefficient,
         'Equipment Usage Ratio': equipment_usage_ratio,
         'Total Equipments': total_equipments,
         'Net Sales Growth': net_sales_growth,
         'Total Remaining Value': total_remaining_value,
         'Number of Dentist': number_of_dentist,
         'Projected Number of Dentist': projected_number_of_dentist,
-        'Possibility Existing Dentist Leaving': possibility_existing_dentist_leaving
+        'Possibility Existing Dentist Leaving': possibility_existing_dentist_leaving,
+        'Relative Variation of Net Sales': relative_variability_net_sales,
+        'Number of Active Patients': number_of_active_patients,
+        'Relative Variation of Patient Spending': relative_variability_patient_spending
     }
 
     # Convert the output_variables dictionary to a DataFrame and save as CSV
@@ -342,10 +400,11 @@ if st.button("Evaluate"):
     st.markdown("## Clinic Value")
 
     ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
-    clinic_valuation = ebit_multiple * model.ebit
-    equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'])
+    equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_tangible_asset, base_equipment_usage_ratio)
     ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Number of Dentist'], output_variables['Projected Number of Dentist'], output_variables['Possibility Existing Dentist Leaving'])
-    
+    ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
+    ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
+    clinic_valuation = ebit_multiple * model.ebit
     
     col1, col2 = st.columns(2)
     
