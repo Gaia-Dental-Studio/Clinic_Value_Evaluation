@@ -21,30 +21,32 @@ with st.container(border=True):
         base_tangible_asset = 80826.5
         base_net_sales_growth = 0.1
         base_number_of_active_patients = 1045
+        base_number_of_dentist = 2
+        base_relative_variability_patient_spending = 0.15
+        base_possibility_existing_dentist_leaving = False
         st.metric("EBIT", f"$ {base_ebit:,.0f}", help="Net Sales - COGS - Operating Expenses")
         st.metric("Net Sales Growth Rate", f"{base_net_sales_growth * 100:.1f}%", help="Yearly")
         st.metric("Tangible Assets", f"$ {base_tangible_asset:,.0f}")
         
         st.metric("Number of Active Patients", base_number_of_active_patients, help="Number of active unique patients in the clinic for the last one year")
-        
-        
+        st.metric("Number of Dentist", base_number_of_dentist, help="Number of dentist in the clinic")
+        st.metric("Possibility Existing Dentist Leaving", base_possibility_existing_dentist_leaving, help="Check if there is a possibility of existing dentist leaving the clinic, despite the projected number of dentist will still be equal to current number of dentist.")
     with col2:
         base_ebit_ratio = 0.22
         st.metric("EBIT Ratio", f"{base_ebit_ratio * 100:.2f}%", help="EBIT / Net Sales")
         base_relative_variability_net_sales = 0.15
         base_equipment_usage_ratio = 0.5
-        base_relative_variability_patient_spending = 0.15
+        base_projected_number_of_dentist = 2
+        
         
         st.metric("Relative Variability of Net Sales", f"{base_relative_variability_net_sales * 100:.0f}%", help="Standard Deviation of Net Sales / Mean Net Sales. Net Sales here is in monthly terms")
         st.metric("Equipment Usage Ratio", f"{base_equipment_usage_ratio * 100:.2f}%", help="Percentage of equipment usage from its expected lifetime")
-        
         st.metric("Relative Variability of Patient Spending", f"{base_relative_variability_patient_spending * 100:.0f}%", help="Standard Deviation of Patient Spending / Mean Patient Spending. Patient Spending here is the yearly spending of each active unique patients")
+        st.metric("Projected Number of Dentist", base_number_of_dentist, help="Projected number of dentist in the clinic")
         
         
-
-    base_ebit_multiple = 2.5
-    st.metric("EBIT Multiple", base_ebit_multiple)
-    
+        base_ebit_multiple = 2.5
+        st.metric("EBIT Multiple", base_ebit_multiple)
 # File upload widget
 uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
 
@@ -232,10 +234,10 @@ with st.expander("Other Variables", expanded=True):
     col1, col2 = st.columns(2)
     
     with col1:
-        number_of_dentist = st.number_input("Number of Dentist", value=2, step=1)
+        number_of_dentist = st.number_input("Number of Dentist", value=model.number_of_dentist if model.number_of_dentist is not None else 2, step=1)
         
     with col2:
-        projected_number_of_dentist = st.number_input("Projected Number of Dentist", value=2, step=1)
+        projected_number_of_dentist = st.number_input("Projected Number of Dentist", value=model.projected_number_of_dentist if model.projected_number_of_dentist is not None else 2, step=1)
         
     
     possibility_existing_dentist_leaving = st.checkbox("Possibility of Existing Dentist Leaving", value=model.potential_existing_dentist_leaving if model.potential_existing_dentist_leaving is not None else False, help="Check if there is a possibility of existing dentist leaving the clinic, despite the projected number of dentist will still be equal to current number of dentist.")
@@ -348,6 +350,17 @@ if st.button("Evaluate"):
             
         with col2:
             st.metric("Total Equipments", f"{total_equipments}")
+            
+        st.markdown('#### Dentist Availability')
+        
+        col1, col2 = st.columns(2)    
+        
+        with col1:
+            st.metric("Number of Dentist", f"{number_of_dentist}", delta=f"{number_of_dentist - base_number_of_dentist}")
+            st.metric("Possibility Existing Dentist Leaving", f"{possibility_existing_dentist_leaving}", delta= f"Baseline = {base_possibility_existing_dentist_leaving}", delta_color="off")
+        
+        with col2:
+            st.metric("Projected Number of Dentist", f"{projected_number_of_dentist}", delta=f"{projected_number_of_dentist - base_projected_number_of_dentist}")
             
         st.markdown('#### Customer Based')
         
