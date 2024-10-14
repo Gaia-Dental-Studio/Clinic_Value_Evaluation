@@ -31,8 +31,13 @@ class ModelClinicValue:
         self.number_of_patients = company_variables.get('Number of Active Patients', 0)
         self.relative_variability_patient_spending = company_variables.get('Relative Variation of Patient Spending', 0)
         self.potential_existing_dentist_leaving = company_variables.get('Potential Existing Dentist Leaving', 0)
-        self.number_of_dentist = company_variables.get('Number of Dentist', 0)
+        self.number_of_dentist = company_variables.get('Current Number of Dentist', 0)
         self.projected_number_of_dentist = company_variables.get('Projected Number of Dentist', 0)
+        
+        # convert to integer for self.number_of_dentist and self.projected_number_of_dentist
+        self.number_of_dentist = int(self.number_of_dentist)
+        self.projected_number_of_dentist = int(self.projected_number_of_dentist)
+        self.number_of_patients = int(self.number_of_patients)
         
 
         # Extract DataFrames from the company variables dictionary
@@ -148,8 +153,12 @@ class ModelClinicValue:
             self.number_of_patients = variable_dict.get('Number of Active Patients', 0)
             self.relative_variability_patient_spending = variable_dict.get('Relative Variation of Patient Spending', 0)
             self.potential_existing_dentist_leaving = variable_dict.get('Potential Existing Dentist Leaving', 0)
-            self.number_of_dentist = variable_dict.get('Number of Dentist', 0)
+            self.number_of_dentist = variable_dict.get('Current Number of Dentist', 0)
             self.projected_number_of_dentist = variable_dict.get('Projected Number of Dentist', 0)
+            
+            self.number_of_dentist = int(self.number_of_dentist)
+            self.projected_number_of_dentist = int(self.projected_number_of_dentist)
+            self.number_of_patients = int(self.number_of_patients)
 
         # Read the net_cash_flow data from the 'net_cash_flow' sheet
         net_cash_flow_df = pd.read_excel(uploaded_file, sheet_name='net_cash_flow', index_col=0)

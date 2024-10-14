@@ -395,7 +395,7 @@ if st.button("Evaluate"):
         'Total Equipments': total_equipments,
         'Net Sales Growth': net_sales_growth,
         'Total Remaining Value': total_remaining_value,
-        'Number of Dentist': number_of_dentist,
+        'Current Number of Dentist': number_of_dentist,
         'Projected Number of Dentist': projected_number_of_dentist,
         'Possibility Existing Dentist Leaving': possibility_existing_dentist_leaving,
         'Relative Variation of Net Sales': relative_variability_net_sales,
@@ -414,7 +414,7 @@ if st.button("Evaluate"):
 
     ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
     equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_tangible_asset, base_equipment_usage_ratio)
-    ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Number of Dentist'], output_variables['Projected Number of Dentist'], output_variables['Possibility Existing Dentist Leaving'])
+    ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Current Number of Dentist'], output_variables['Projected Number of Dentist'], output_variables['Possibility Existing Dentist Leaving'])
     ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
     ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
     clinic_valuation = ebit_multiple * model.ebit
