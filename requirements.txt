@@ -5,3 +5,4 @@ scikit_learn
 streamlit
 openpyxl
 streamlit_navigation_bar
+matplotlib
