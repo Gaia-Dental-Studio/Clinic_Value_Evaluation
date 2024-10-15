@@ -1,0 +1,7 @@
+Variable,Mean,Std
+EBIT,250000,100000
+EBIT Ratio,0.3,0.10
+Net Sales Growth,0.20,0.05
+Relative Variation of Net Sales,0.15,0.05
+Number of Active Patients,1000,400
+Relative Variation of Patient Spending,0.15,0.05

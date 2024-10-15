@@ -146,8 +146,8 @@ class ModelClinicValue:
             self.ebitda = self.net_sales + self.cogs + self.trading_income + self.other_income + self.general_expense
             self.depreciation_total = self.clinic_depreciation + self.non_clinic_depreciation
             self.tax_total = self.bank_tax_expense + self.other_tax
-            self.ebit = self.ebitda + self.depreciation_total + self.tax_total
-            self.ebit_ratio = self.ebit / self.net_sales if self.net_sales > 0 else None
+            self.ebit = variable_dict.get('EBIT', self.ebitda + self.depreciation_total + self.tax_total)
+            self.ebit_ratio = variable_dict.get('EBIT Ratio', self.ebit / self.net_sales if self.net_sales > 0 else None)
             self.net_sales_growth = variable_dict.get('Net Sales Growth', 0)
             self.relative_variability_net_sales = variable_dict.get('Relative Variation of Net Sales', 0)
             self.number_of_patients = variable_dict.get('Number of Active Patients', 0)
@@ -177,13 +177,11 @@ class ModelClinicValue:
         net_cash_flow_df = net_cash_flow_df.reindex(default_years)
 
         self.net_cash_flow = net_cash_flow_df
-
-
+        
     def ebit_baseline_to_multiple(self, net_sales_growth):
         
         ebit = self.ebit
         ebit_ratio = self.ebit_ratio
-        
         
         data = pd.read_csv('EBIT_baseline_to_multiple.csv')
         # Define boundary values based on the unique values in the dataset
@@ -191,10 +189,10 @@ class ModelClinicValue:
         ebit_ratio_boundaries = sorted(data['EBIT Ratio'].unique())
         net_sales_growth_boundaries = sorted(data['Net Sales Growth'].unique())
 
-        # Round down to nearest boundary value
-        ebit = max([val for val in ebit_boundaries if val <= ebit])
-        ebit_ratio = max([val for val in ebit_ratio_boundaries if val <= ebit_ratio])
-        net_sales_growth = max([val for val in net_sales_growth_boundaries if val <= net_sales_growth])
+        # Round down to nearest boundary value, with a fallback to the minimum boundary
+        ebit = max([val for val in ebit_boundaries if val <= ebit], default=min(ebit_boundaries))
+        ebit_ratio = max([val for val in ebit_ratio_boundaries if val <= ebit_ratio], default=min(ebit_ratio_boundaries))
+        net_sales_growth = max([val for val in net_sales_growth_boundaries if val <= net_sales_growth], default=min(net_sales_growth_boundaries))
 
         # Lookup the row with the closest match
         result = data[(data['EBIT'] == ebit) & 
@@ -206,6 +204,36 @@ class ModelClinicValue:
             return result['EBIT Multiple'].values[0]
         else:
             return None
+
+
+
+    # def ebit_baseline_to_multiple(self, net_sales_growth):
+        
+    #     ebit = self.ebit
+    #     ebit_ratio = self.ebit_ratio
+        
+        
+    #     data = pd.read_csv('EBIT_baseline_to_multiple.csv')
+    #     # Define boundary values based on the unique values in the dataset
+    #     ebit_boundaries = sorted(data['EBIT'].unique())
+    #     ebit_ratio_boundaries = sorted(data['EBIT Ratio'].unique())
+    #     net_sales_growth_boundaries = sorted(data['Net Sales Growth'].unique())
+
+    #     # Round down to nearest boundary value
+    #     ebit = max([val for val in ebit_boundaries if val <= ebit])
+    #     ebit_ratio = max([val for val in ebit_ratio_boundaries if val <= ebit_ratio])
+    #     net_sales_growth = max([val for val in net_sales_growth_boundaries if val <= net_sales_growth])
+
+    #     # Lookup the row with the closest match
+    #     result = data[(data['EBIT'] == ebit) & 
+    #                 (data['EBIT Ratio'] == ebit_ratio) & 
+    #                 (data['Net Sales Growth'] == net_sales_growth)]
+
+    #     # Return the EBIT Multiple if a match is found, else return None
+    #     if not result.empty:
+    #         return result['EBIT Multiple'].values[0]
+    #     else:
+    #         return None
         
     def ebit_multiple_adjustment_due_dentist(self, ebit_multiple, number_of_dentist, projected_number_of_dentist, possibility_existing_dentist_leaving):
         
