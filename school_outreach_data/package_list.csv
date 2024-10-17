@@ -1,0 +1,9 @@
+Treatment Package,Category,Description,Conversion Rate Single (%),Conversion Rate Family (%)
+Basic Care,Student,"Consultation, Scaling",30,30
+Comprehensive Care,Student,"Consultation, Periapical X-Ray, Scaling, Filling",30,30
+Preventive Care,Student,"Consultation, Scaling, Dental Sealants",30,30
+Basic Oral Health,Parent,"Consultation, Periapical X-Ray, Scaling",0,30
+Complete Oral Health,Parent,"Consultation, Periapical X-Ray, Scaling, Gum Surgery, Tooth Extraction",0,30
+Cosmetic Enhancement,Parent,"Consultation, Bleaching",0,30
+Restorative Care,Parent,"Consultation, Periapical X-Ray, Crown, Bridge",0,30
+

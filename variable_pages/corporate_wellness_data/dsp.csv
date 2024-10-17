@@ -1,0 +1,6 @@
+Treatment,Conversion Rate (%),Original Price (Rp.),Discount Price (%),Price (Rp.),Cost Material (Rp.),Duration (Min),Dentist Fee Per Hour (Rp.)
+Bleaching,20%,2500000,"25%",1875000,633333,105,160000
+Crown,15%,1800000,"29.82%",1263158,50000,85,160000
+Bridge,10%,5400000,"29.82%",1263158,50000,200,160000
+Upper Wisdom Tooth Extraction,25%,1000000,"20.00%",800000,32000,165,160000
+Lower Wisdom Tooth Extraction,25%,1900000,"20.00%",1520000,68000,165,160000

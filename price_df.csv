@@ -1,0 +1,14 @@
+Treatment,Category,Adjusted Price Single (Rp.),Adjusted Price Family (Rp.),Unit of Measure,Cost Material (Rp.),Dentist Fee (Rp.)
+Consultation ,Student,90000.0,80000.0,,0,17500.0
+Periapical X-Ray,Student,180000.0,160000.0,Per exposed,0,35000.0
+Filling,Student,180000.0,160000.0,Per tooth,59222,52500.0
+Scaling,Student,180000.0,160000.0,All tooth,0,17500.0
+Dental Sealants,Student,450000.0,400000.0,All tooth,40000,200000.0
+Consultation ,Parent,90000.0,80000.0,,0,17500.0
+Periapical X-Ray,Parent,180000.0,160000.0,Per exposed,0,35000.0
+Scaling,Parent,180000.0,160000.0,All tooth,0,17500.0
+Gum Surgery,Parent,360000.0,320000.0,Per tooth,69479,240000.0
+Tooth Extraction,Parent,360000.0,320000.0,Per tooth,41479,320000.0
+Bleaching,Parent,2250000.0,2000000.0,All tooth,633333,280000.0
+Crown,Parent,1620000.0,1440000.0,Per tooth,50000,253333.3333333333
+Bridge,Parent,1620000.0,1440000.0,Per tooth,50000,533333.3333333334

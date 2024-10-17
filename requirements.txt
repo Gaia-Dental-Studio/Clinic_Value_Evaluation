@@ -1,8 +1,10 @@
-cvxpy
+matplotlib
 numpy
 pandas
-scikit_learn
+plotly
+scipy
+seaborn
 streamlit
-openpyxl
 streamlit_navigation_bar
-matplotlib
+streamlit_pdf_viewer
+openpyxl

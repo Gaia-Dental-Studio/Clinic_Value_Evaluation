@@ -1,9 +1,9 @@
 import pandas as pd
-from sklearn.linear_model import LinearRegression
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
+import plotly.express as px
+
 
 class ModelClinicValue:
     def __init__(self, company_variables):
@@ -19,69 +19,75 @@ class ModelClinicValue:
         self.non_clinic_depreciation = company_variables.get('Depreciation of Equipment Non Clinic Expense', 0)
         self.bank_tax_expense = company_variables.get('Bank Tax Expense', 0)
         self.other_tax = company_variables.get('Other Tax', 0)
-        self.tangible_assets = company_variables.get('Tangible Assets (PP&E)', 0)
+        self.equipment_value = company_variables.get('Equipments Value', 0)
         self.general_expense = self.operational_expense + self.other_expense
         self.ebitda = self.net_sales + self.cogs + self.trading_income + self.other_income + self.general_expense
         self.depreciation_total = self.clinic_depreciation + self.non_clinic_depreciation
         self.tax_total = self.bank_tax_expense + self.other_tax
-        self.ebit = self.ebitda + self.depreciation_total + self.tax_total
-        self.ebit_ratio = self.ebit / self.net_sales if self.net_sales > 0 else None
+        self.revenue = self.net_sales + self.trading_income + self.other_income
+        self.ebit = self.ebitda + self.depreciation_total #+ self.tax_total
+        self.ebit_ratio = self.ebit / self.revenue if self.revenue > 0 else None
         self.net_sales_growth = company_variables.get('Net Sales Growth', 0)
         self.relative_variability_net_sales = company_variables.get('Relative Variation of Net Sales', 0)
         self.number_of_patients = company_variables.get('Number of Active Patients', 0)
         self.relative_variability_patient_spending = company_variables.get('Relative Variation of Patient Spending', 0)
         self.potential_existing_dentist_leaving = company_variables.get('Potential Existing Dentist Leaving', 0)
-        self.number_of_dentist = company_variables.get('Current Number of Dentist', 0)
-        self.projected_number_of_dentist = company_variables.get('Projected Number of Dentist', 0)
+        # self.number_of_dentist = company_variables.get('Current Number of Dentist', 0)
+        # self.projected_number_of_dentist = company_variables.get('Projected Number of Dentist', 0)
         
         # convert to integer for self.number_of_dentist and self.projected_number_of_dentist
-        self.number_of_dentist = int(self.number_of_dentist)
-        self.projected_number_of_dentist = int(self.projected_number_of_dentist)
+        # self.number_of_dentist = int(self.number_of_dentist)
+        # self.projected_number_of_dentist = int(self.projected_number_of_dentist)
         self.number_of_patients = int(self.number_of_patients)
         
 
         # Extract DataFrames from the company variables dictionary
         self.net_cash_flow = company_variables.get('Net Cash Flow', None)
         self.equipment_life = company_variables.get('Equipment_Life', pd.DataFrame())
-
-    def analyze_cash_flow(self):
-        # Replace None values with 0 in the net_cash_flow DataFrame
-        self.net_cash_flow = self.net_cash_flow.fillna(0)
-
-        # Transform the wide-format net_cash_flow DataFrame into a long format
-        long_data = self.net_cash_flow.reset_index().melt(id_vars='index', var_name='Month', value_name='Net Cashflow')
-        long_data.rename(columns={'index': 'Year'}, inplace=True)
-        long_data['Year'] = long_data['Year'].astype(int)
-
-        # Sort data by Year and Month
-        month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        long_data['Month'] = pd.Categorical(long_data['Month'], categories=month_order, ordered=True)
-        long_data = long_data.sort_values(['Year', 'Month']).reset_index(drop=True)
-
-        # Convert Net Cashflow values to numeric, forcing errors to NaN
-        long_data['Net Cashflow'] = pd.to_numeric(long_data['Net Cashflow'], errors='coerce')
-
-        # Drop rows with missing values (None or NaN)
-        cleaned_data = long_data.dropna(subset=['Net Cashflow'])
-
-        # Calculate the standard deviation of the Net Cashflow
-        std_deviation = cleaned_data['Net Cashflow'].std()
         
-        # Calculate the average of the Net Cashflow
-        average_cashflow = cleaned_data['Net Cashflow'].mean()
+        self.dentist_contribution = None
+        self.net_sales_yearly = None
+        self.net_sales_monthly = None
+        self.patient_transaction = None
 
-        # Calculate the trend line coefficient (slope) using linear regression
-        if not cleaned_data.empty:
-            cleaned_data['Time_Index'] = np.arange(len(cleaned_data))  # Create a time index for the regression
-            X = cleaned_data[['Time_Index']]
-            y = cleaned_data['Net Cashflow']
-            model = LinearRegression()
-            model.fit(X, y)
-            trend_coefficient = model.coef_[0]
-        else:
-            trend_coefficient = 0  # If there's no data, return 0 for the trend coefficient
+    # def analyze_cash_flow(self):
+    #     # Replace None values with 0 in the net_cash_flow DataFrame
+    #     self.net_cash_flow = self.net_cash_flow.fillna(0)
 
-        return average_cashflow, std_deviation, trend_coefficient
+    #     # Transform the wide-format net_cash_flow DataFrame into a long format
+    #     long_data = self.net_cash_flow.reset_index().melt(id_vars='index', var_name='Month', value_name='Net Cashflow')
+    #     long_data.rename(columns={'index': 'Year'}, inplace=True)
+    #     long_data['Year'] = long_data['Year'].astype(int)
+
+    #     # Sort data by Year and Month
+    #     month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    #     long_data['Month'] = pd.Categorical(long_data['Month'], categories=month_order, ordered=True)
+    #     long_data = long_data.sort_values(['Year', 'Month']).reset_index(drop=True)
+
+    #     # Convert Net Cashflow values to numeric, forcing errors to NaN
+    #     long_data['Net Cashflow'] = pd.to_numeric(long_data['Net Cashflow'], errors='coerce')
+
+    #     # Drop rows with missing values (None or NaN)
+    #     cleaned_data = long_data.dropna(subset=['Net Cashflow'])
+
+    #     # Calculate the standard deviation of the Net Cashflow
+    #     std_deviation = cleaned_data['Net Cashflow'].std()
+        
+    #     # Calculate the average of the Net Cashflow
+    #     average_cashflow = cleaned_data['Net Cashflow'].mean()
+
+    #     # Calculate the trend line coefficient (slope) using linear regression
+    #     if not cleaned_data.empty:
+    #         cleaned_data['Time_Index'] = np.arange(len(cleaned_data))  # Create a time index for the regression
+    #         X = cleaned_data[['Time_Index']]
+    #         y = cleaned_data['Net Cashflow']
+    #         model = LinearRegression()
+    #         model.fit(X, y)
+    #         trend_coefficient = model.coef_[0]
+    #     else:
+    #         trend_coefficient = 0  # If there's no data, return 0 for the trend coefficient
+
+    #     return average_cashflow, std_deviation, trend_coefficient
     
     def calculate_equipment_usage_ratio(self):
         # Filter the equipment that the clinic owns (where 'Own?' is True)
@@ -141,42 +147,48 @@ class ModelClinicValue:
             self.non_clinic_depreciation = variable_dict.get('Depreciation of Equipment Non Clinic Expense', 0)
             self.bank_tax_expense = variable_dict.get('Bank Tax Expense', 0)
             self.other_tax = variable_dict.get('Other Tax', 0)
-            self.tangible_assets = variable_dict.get('Tangible Assets (PP&E)', 0)
+            self.equipment_value = variable_dict.get('Equipments Value', 0)
             self.general_expense = self.operational_expense + self.other_expense
             self.ebitda = self.net_sales + self.cogs + self.trading_income + self.other_income + self.general_expense
             self.depreciation_total = self.clinic_depreciation + self.non_clinic_depreciation
             self.tax_total = self.bank_tax_expense + self.other_tax
-            self.ebit = variable_dict.get('EBIT', self.ebitda + self.depreciation_total + self.tax_total)
-            self.ebit_ratio = variable_dict.get('EBIT Ratio', self.ebit / self.net_sales if self.net_sales > 0 else None)
+            self.ebit = variable_dict.get('EBIT', self.ebitda + self.depreciation_total) #+ self.tax_total)
+            self.revenue = self.net_sales + self.trading_income + self.other_income
+            self.ebit_ratio = variable_dict.get('EBIT Ratio', self.ebit / self.revenue if self.revenue > 0 else None)
             self.net_sales_growth = variable_dict.get('Net Sales Growth', 0)
             self.relative_variability_net_sales = variable_dict.get('Relative Variation of Net Sales', 0)
             self.number_of_patients = variable_dict.get('Number of Active Patients', 0)
             self.relative_variability_patient_spending = variable_dict.get('Relative Variation of Patient Spending', 0)
             self.potential_existing_dentist_leaving = variable_dict.get('Potential Existing Dentist Leaving', 0)
-            self.number_of_dentist = variable_dict.get('Current Number of Dentist', 0)
-            self.projected_number_of_dentist = variable_dict.get('Projected Number of Dentist', 0)
+            # self.number_of_dentist = variable_dict.get('Current Number of Dentist', 0)
+            # self.projected_number_of_dentist = variable_dict.get('Projected Number of Dentist', 0)
             
-            self.number_of_dentist = int(self.number_of_dentist)
-            self.projected_number_of_dentist = int(self.projected_number_of_dentist)
+            # self.number_of_dentist = int(self.number_of_dentist)
+            # self.projected_number_of_dentist = int(self.projected_number_of_dentist)
             self.number_of_patients = int(self.number_of_patients)
+            
+        self.dentist_contribution = pd.read_excel(uploaded_file, sheet_name='dentist_contribution')
+        self.net_sales_yearly = pd.read_excel(uploaded_file, sheet_name='yearly_net_sales')
+        self.net_sales_monthly = pd.read_excel(uploaded_file, sheet_name='monthly_net_sales')
+        self.patient_transaction = pd.read_excel(uploaded_file, sheet_name='patient_transaction')
 
-        # Read the net_cash_flow data from the 'net_cash_flow' sheet
-        net_cash_flow_df = pd.read_excel(uploaded_file, sheet_name='net_cash_flow', index_col=0)
+        # # Read the net_cash_flow data from the 'net_cash_flow' sheet
+        # net_cash_flow_df = pd.read_excel(uploaded_file, sheet_name='net_cash_flow', index_col=0)
 
-        # Ensure that the index (year) is properly formatted as integers
-        net_cash_flow_df.index = net_cash_flow_df.index.astype(int)
+        # # Ensure that the index (year) is properly formatted as integers
+        # net_cash_flow_df.index = net_cash_flow_df.index.astype(int)
 
-        # Ensure that the DataFrame contains all the default years ['2019', '2020', '2021', '2022', '2023']
-        default_years = [2019, 2020, 2021, 2022, 2023]
-        for year in default_years:
-            if year not in net_cash_flow_df.index:
-                # Add missing years with None values for all months
-                net_cash_flow_df.loc[year] = [None] * 12
+        # # Ensure that the DataFrame contains all the default years ['2019', '2020', '2021', '2022', '2023']
+        # default_years = [2019, 2020, 2021, 2022, 2023]
+        # for year in default_years:
+        #     if year not in net_cash_flow_df.index:
+        #         # Add missing years with None values for all months
+        #         net_cash_flow_df.loc[year] = [None] * 12
 
-        # Reorder the index to maintain the order of default years
-        net_cash_flow_df = net_cash_flow_df.reindex(default_years)
+        # # Reorder the index to maintain the order of default years
+        # net_cash_flow_df = net_cash_flow_df.reindex(default_years)
 
-        self.net_cash_flow = net_cash_flow_df
+        # self.net_cash_flow = net_cash_flow_df
         
     def ebit_baseline_to_multiple(self, net_sales_growth):
         
@@ -234,13 +246,21 @@ class ModelClinicValue:
     #         return result['EBIT Multiple'].values[0]
     #     else:
     #         return None
+    
+    def calculate_risk_of_dentist_leaving(self, dentist_contribution_table):
+            
+        df = dentist_contribution_table
         
-    def ebit_multiple_adjustment_due_dentist(self, ebit_multiple, number_of_dentist, projected_number_of_dentist, possibility_existing_dentist_leaving):
+        df['Contribution (%)'] = df['Sales Contribution ($)'] / df['Sales Contribution ($)'].sum()
         
-        weight_coefficient = 0.6 if possibility_existing_dentist_leaving else 1
+        risk = df[df['Possibly Leaving?'] == True]['Contribution (%)'].sum()
         
-        if number_of_dentist <= projected_number_of_dentist:
-            ebit_multiple = ebit_multiple * (projected_number_of_dentist / number_of_dentist * weight_coefficient)
+        return risk
+        
+    def ebit_multiple_adjustment_due_dentist(self, ebit_multiple, risk):
+        
+        
+        ebit_multiple = ebit_multiple * (1 - risk)
         
         
         return ebit_multiple
@@ -295,3 +315,58 @@ class ModelClinicValue:
         ebit_multiple = ebit_multiple * adjustment_to_multiple_due_number_patient * adjustment_to_multiple_due_patient_spending_variability
         
         return ebit_multiple
+    
+    
+    
+    
+    # OUTPUT SUPPORTING FUNCTION
+    
+    def plot_net_sales_yearly(self):
+        # Check if the net_sales_yearly DataFrame is not None
+        if self.net_sales_yearly is None:
+            return None
+
+        # Sort the DataFrame by 'Year'
+        sorted_data = self.net_sales_yearly.sort_values('Year')
+
+        # Create the Plotly line chart
+        fig = px.line(sorted_data, x='Year', y='Net Sales', 
+                      title='Yearly Net Sales', 
+                      labels={'Year': 'Year', 'Net Sales': 'Net Sales'},
+                      markers=True)  # Enable markers
+
+        # Customize the layout if needed (optional)
+        fig.update_layout(xaxis_title='Year', yaxis_title='Net Sales')
+        
+        # update layout for xticks to only show integer
+        fig.update_xaxes(tickmode='linear')
+
+        # Return the Plotly figure object
+        return fig
+    
+    
+    def plot_net_sales_monthly(self):
+        # Check if the net_sales_yearly DataFrame is not None
+        if self.net_sales_monthly is None:
+            return None
+
+        # Sort the DataFrame by 'Year' and 'Month' if needed
+        sorted_data = self.net_sales_monthly.sort_values(['Year', 'Month'])
+
+        # Combine the 'Month' and 'Year' columns to create a new 'Month-Year' column for the x-axis
+        sorted_data['Month-Year'] = sorted_data['Month'] + '-' + sorted_data['Year'].astype(str)
+
+        # Create the Plotly line chart
+        fig = px.line(sorted_data, x='Month-Year', y='Net Sales', 
+                      title='Yearly Net Sales', 
+                      labels={'Month-Year': 'Month-Year', 'Net Sales': 'Net Sales'},
+                      markers=True)  # Enable markers
+
+        # Customize the layout if needed (optional)
+        fig.update_layout(xaxis_title='Month-Year', yaxis_title='Net Sales')
+
+        # Ensure the x-axis labels show all the months
+        fig.update_xaxes(tickmode='linear')
+
+        # Return the Plotly figure object
+        return fig

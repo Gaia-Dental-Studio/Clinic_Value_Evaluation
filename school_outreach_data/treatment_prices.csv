@@ -1,0 +1,8 @@
+Treatment,Original Price (Rp.),Unit of Measure,Dentist Fee (Rp.),Cost Material (Rp.),Conversion Rate (%)
+Filling,200000,Per Tooth,60000,59222, 30
+Scaling,200000,All Tooth,60000,0, 50
+Tooth Extraction,400000,Per Tooth,120000,41479, 5
+Gum Surgery,400000,Per Tooth,120000,69479, 5
+Dental Sealants,500000,All Tooth,150000,40000, 10
+Crown,1800000,Per Tooth,540000,50000, 10
+Bleaching,2500000,All Tooth,750000,633333, 10

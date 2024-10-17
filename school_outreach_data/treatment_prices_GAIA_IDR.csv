@@ -1,0 +1,14 @@
+Treatment,Category,Original Price (Rp.),Unit of Measure,Dentist Fee (Rp.),Cost Material (Rp.),total_duration,Dentist Fee per Hour
+Consultation ,Student,260000,,100000,78000,30.0,160000
+Periapical X-Ray,Student,120000,Per exposed,200000,36000,60.0,35000
+Filling,Student,408000,Per tooth,200000,122400,90.0,35000
+Scaling,Student,260000,All tooth,200000,78000,30.0,35000
+Dental Sealants,Student,450000,All tooth,500000,135000,75.0,160000
+Consultation ,Parent,260000,,100000,78000,30.0,160000
+Periapical X-Ray,Parent,120000,Per exposed,200000,36000,60.0,35000
+Scaling,Parent,260000,All tooth,200000,78000,30.0,35000
+Gum Surgery,Parent,373000,Per tooth,400000,111900,90.0,160000
+Tooth Extraction,Parent,1063000,Per tooth,400000,318900,120.0,160000
+Bleaching,Parent,833000,All tooth,2500000,249900,105.0,160000
+Crown,Parent,1544000,Per tooth,1800000,463200,95.0,160000
+Bridge,Parent,4004000,Per tooth,1800000,1201200,200.0,160000
