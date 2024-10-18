@@ -4,8 +4,14 @@ import main_app
 import monte_carlo_app
 import potential_value_model
 import current_value_calculation
+# Using "with" notation
+with st.sidebar:
+    page = st.radio(
+        "Choose a page",
+        ("Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator")
+    )
 
-page = st_navbar(["Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator"])
+# page = st_navbar(["Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator"])
 
 if page == "Main Calculator":
     main_app.app()

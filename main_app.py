@@ -515,19 +515,22 @@ def app():
             
         }
 
+        output_variables['EBIT'] = model.ebit
+        output_variables['EBIT Ratio'] = model.ebit_ratio
+        # output_variables['Operating Income'] = output_variables['Net Sales'] + output_variables['Trading Income'] + output_variables['Other Income'] + output_variables['Interest Revenue of Bank'] + output_variables['COGS'] + output_variables['Advertising & Promotion Expense'] + output_variables['Operational Expense'] + output_variables['Other Expense']
+
         # Convert the output_variables dictionary to a DataFrame and save as CSV
         output_df = pd.DataFrame([output_variables])
         output_df.to_csv('output_variables.csv', index=False)
         
-        output_variables['EBIT'] = model.ebit
-        output_variables['EBIT Ratio'] = model.ebit_ratio
+
         
         st.divider()
         
         st.markdown("## Clinic Value")
         
         st.markdown("#### Calculating Current Clinic Value")
-        st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to upper navigation bar and click on the **'Clininc Value Calculation'** tab")
+        st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Clininc Value Calculation'** tab")
 
         ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
         equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)

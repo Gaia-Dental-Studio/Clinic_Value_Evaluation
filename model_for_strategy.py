@@ -4,64 +4,59 @@ import random
 import plotly.graph_objs as go
 
 class GeneralModel:
-    def create_cashflow_df(self, total_revenue, total_cost, period, period_to_forecast, period_type='monthly', fluctuate=True, denominator=100):
+    def create_cashflow_df(self, total_revenue, total_cost, period, period_to_forecast, period_type='monthly', fluctuate=True, std=0.1):
         """
         Create a fluctuative or stable monthly cashflow DataFrame.
-        If fluctuate=True, fluctuating values will be generated. 
+        If fluctuate=True, values will fluctuate based on the standard deviation.
         If fluctuate=False, values will be evenly distributed across periods.
-        
+
         'period' refers to the time span (in months or years) of the input total_revenue and total_cost.
         """
         # Adjust the total_revenue and total_cost to be monthly values
         if period_type == 'yearly':
-            # The input total_revenue and total_cost are for 'period' years, so divide by the number of years
             total_revenue /= (period * 12)  # Convert to monthly revenue
             total_cost /= (period * 12)  # Convert to monthly cost
             forecast_periods = period_to_forecast * 12  # Convert forecast period to months
         elif period_type == 'monthly':
-            # The input total_revenue and total_cost are for 'period' months, so divide by the number of months
             total_revenue /= period  # Convert to monthly revenue
             total_cost /= period  # Convert to monthly cost
             forecast_periods = period_to_forecast  # Already in months
         else:
             raise ValueError("Invalid period_type. Must be 'monthly' or 'yearly'.")
 
-        # If fluctuate is True, apply fluctuation logic, otherwise apply equal distribution logic
+        # If fluctuate is True, apply fluctuation logic using standard deviation
         if fluctuate:
-            # Generate random volumes for the forecasted periods
-            random_volumes = np.random.randint(1, denominator, size=forecast_periods-1)  # Random volumes for all but the last period
-            final_volume = max(denominator - np.sum(random_volumes), 1)  # Ensure total sums up to denominator and no negatives
+            # Mean values for revenue and cost per month
+            mean_revenue = total_revenue * forecast_periods
+            mean_cost = total_cost * forecast_periods
             
-            # Append the final volume
-            volumes = np.append(random_volumes, final_volume)
+            # Generate random fluctuations using normal distribution around 1 (no mean shift) with the given std deviation
+            fluctuations = np.random.normal(loc=1, scale=std, size=forecast_periods)
             
-            # Scale the volumes to ensure they sum up to the exact total
-            volumes = volumes / np.sum(volumes) * denominator
-            
-            total_revenue = total_revenue * forecast_periods  # Multiply by the number of forecast periods
-            total_cost = total_cost * forecast_periods
-            
-            # Calculate revenue and expense for each forecast period based on the volumes
-            revenue_per_denominator = total_revenue / denominator
-            expense_per_denominator = total_cost / denominator
-            
-            # Use the generated volumes to calculate revenue and expense for each forecasted period
-            revenue_list = revenue_per_denominator * volumes 
-            expense_list = expense_per_denominator * volumes 
+            # Ensure fluctuations maintain the total revenue and cost
+            revenue_list = fluctuations * (mean_revenue / np.sum(fluctuations))
+            cost_list = fluctuations * (mean_cost / np.sum(fluctuations))
             
         else:
             # If no fluctuation, evenly distribute the total revenue and cost over the forecast periods
             revenue_list = np.full(forecast_periods, total_revenue)  # Equal revenue across months
-            expense_list = np.full(forecast_periods, total_cost)  # Equal expense across months
+            cost_list = np.full(forecast_periods, total_cost)  # Equal cost across months
 
         # Create DataFrame
         cashflow_df = pd.DataFrame({
             'Period': range(1, forecast_periods + 1),  # Reflect months, regardless of whether input was yearly or monthly
             'Revenue': revenue_list,
-            'Expense': expense_list
+            'Expense': cost_list
         })
         
         return cashflow_df
+    
+    def set_currency(self, currency):
+        if currency == 'IDR':
+            currency = 'Rp.'
+        if currency == 'AUD':
+            currency = '$'
+        return currency
 
 class ModelCorporateWellness:
     def __init__(self):
@@ -439,8 +434,8 @@ class ModelAgecareOutreach:
         
         
         # Load the treatment prices CSV
-        self.treatment_prices_df = pd.read_csv(r'agecare_outreach_data/treatment_prices.csv')
-        self.event_cost_df = pd.read_csv(r'agecare_outreach_data/event_cost.csv')
+        self.treatment_prices_df = pd.read_csv(r'agecare_outreach_data\treatment_prices.csv')
+        self.event_cost_df = pd.read_csv(r'agecare_outreach_data\event_cost.csv')
 
     
     def initial_price_df(self):
@@ -497,8 +492,8 @@ class ModelSpecialNeedsOutreach:
         
         
         # Load the treatment prices CSV
-        self.treatment_prices_df = pd.read_csv(r'special_needs_outreach_data/treatment_prices.csv')
-        self.event_cost_df = pd.read_csv(r'special_needs_outreach_data/event_cost.csv')
+        self.treatment_prices_df = pd.read_csv(r'special_needs_outreach_data\treatment_prices.csv')
+        self.event_cost_df = pd.read_csv(r'special_needs_outreach_data\event_cost.csv')
 
     
     def initial_price_df(self):

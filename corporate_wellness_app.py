@@ -4,6 +4,7 @@ from model_for_strategy import ModelCorporateWellness, GeneralModel  # Importing
 import numpy as np
 import plotly.graph_objs as go
 
+
 def app():
 
     # Load treatment prices CSV to get the list of treatments
@@ -14,7 +15,15 @@ def app():
     st.write("""
     The Corporate Wellness Program aims to partner with local businesses to provide comprehensive dental wellness services to their employees. This initiative is designed to improve oral health, enhance employee benefits, and generate additional revenue for the dental clinic.
     """)
+    
+    st.markdown("#### Note:")
+    st.write("**Currently this model involves only for Indonesian pricing and cost. Work is in progress to curate the dataset for Australian pricing and cost.**")
+    st.write("**Neverheless this model still can calculate and accomodate the expected ARO in AUD, however it will be simply convert the currency value from IDR to AUD**")
 
+    url = "https://docs.google.com/document/d/1962VoU_HqvpQLH0VzjUXI0c15YpcdPIoMLA-UYdvA3g/edit?usp=sharing"
+
+    st.markdown("#### Additional Note:")
+    st.write("**The documentation of this Corporate Wellness Program model can be accessed [HERE](%s). The technical limitation of this model prorotype make unable for me to put the extensive documentation here**" % url)
     # Divider
     st.divider()
 
@@ -24,7 +33,7 @@ def app():
     st.markdown("#### Employee Wellness Program Parameters")
     # First row: Total Potential Employee and Conversion Rate
     
-    pricing_basis = st.radio("Pricing and Material Cost Basis", ["Dr.Riesqi", "GAIA Indonesia"], index=0)
+    pricing_basis = st.radio("Pricing and Material Cost Basis", ["Dr.Riesqi", "GAIA Indonesia"], index=0, )
     
     model.set_pricing_basis(pricing_basis)
     
@@ -196,26 +205,43 @@ def app():
 
         st.markdown('## Overall Results')
         
-        col1, col2 = st.columns(2)
+        tab1, tab2 = st.tabs(['Indonesian Rupiah (IDR)', 'Australian Dollar (AUD)'])
         
-        total_revenue_overall = aro + dsp_aro
-        total_cost_overall = total_cost + dsp_cost
-        total_profit_overall = total_profit + total_dsp_profit
-        
-        with col1:
-            st.metric(label="Total Revenue", value="Rp{:,.0f}".format(total_revenue_overall))
-            st.metric(label="Total Cost", value="Rp{:,.0f}".format(total_cost_overall))
+        with tab1:
+            col1, col2 = st.columns(2)
             
-        with col2:
-            st.metric(label="Total Profit", value="Rp{:,.0f}".format(total_profit_overall))
+            total_revenue_overall = aro + dsp_aro
+            total_cost_overall = total_cost + dsp_cost
+            total_profit_overall = total_profit + total_dsp_profit
             
-        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly')
+            with col1:
+                st.metric(label="Total Revenue", value="Rp{:,.0f}".format(total_revenue_overall))
+                st.metric(label="Total Cost", value="Rp{:,.0f}".format(total_cost_overall))
+                
+            with col2:
+                st.metric(label="Total Profit", value="Rp{:,.0f}".format(total_profit_overall))
         
+        with tab2:
+            col1, col2 = st.columns(2)
+            total_revenue_overall_AUD = total_revenue_overall /10000
+            total_cost_overall_AUD = total_cost_overall /10000
+            total_profit_overall_AUD = total_profit_overall /10000
+            
+            with col1:
+                st.metric(label="Total Revenue", value="${:,.0f}".format(total_revenue_overall_AUD))
+                st.metric(label="Total Cost", value="${:,.0f}".format(total_cost_overall_AUD))
+                
+            with col2:
+                st.metric(label="Total Profit", value="${:,.0f}".format(total_profit_overall_AUD))
+            
+        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', std=0.15)
+        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', std=0.15)
         # st.dataframe(cashflow_df, hide_index=True)
         # st.write(f'Average Revenue: Rp.{cashflow_df["Revenue"].mean():,.0f}')
         # st.write(f'Total Revenue: Rp.{cashflow_df["Revenue"].sum():,.0f}')
         
         cashflow_df.to_csv('corporate_cashflow.csv', index=False)
+        cashflow_df_AUD.to_csv('corporate_cashflow_AUD.csv', index=False)
         
         
         
@@ -291,26 +317,43 @@ def app():
 
         st.markdown('## Overall Results')
         
-        col1, col2 = st.columns(2)
+        tab1, tab2 = st.tabs(['Indonesian Rupiah (IDR)', 'Australian Dollar (AUD)'])
         
-        total_revenue_overall = aro + dsp_aro
-        total_cost_overall = total_cost + dsp_cost
-        total_profit_overall = total_profit + total_dsp_profit
-        
-        with col1:
-            st.metric(label="Total Revenue", value="Rp{:,.0f}".format(total_revenue_overall))
-            st.metric(label="Total Cost", value="Rp{:,.0f}".format(total_cost_overall))
+        with tab1:
+            col1, col2 = st.columns(2)
             
-        with col2:
-            st.metric(label="Total Profit", value="Rp{:,.0f}".format(total_profit_overall))
+            total_revenue_overall = aro + dsp_aro
+            total_cost_overall = total_cost + dsp_cost
+            total_profit_overall = total_profit + total_dsp_profit
             
-        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly')
+            with col1:
+                st.metric(label="Total Revenue", value="Rp{:,.0f}".format(total_revenue_overall))
+                st.metric(label="Total Cost", value="Rp{:,.0f}".format(total_cost_overall))
+                
+            with col2:
+                st.metric(label="Total Profit", value="Rp{:,.0f}".format(total_profit_overall))
         
+        with tab2:
+            col1, col2 = st.columns(2)
+            total_revenue_overall_AUD = total_revenue_overall /10000
+            total_cost_overall_AUD = total_cost_overall /10000
+            total_profit_overall_AUD = total_profit_overall /10000
+            
+            with col1:
+                st.metric(label="Total Revenue", value="${:,.0f}".format(total_revenue_overall_AUD))
+                st.metric(label="Total Cost", value="${:,.0f}".format(total_cost_overall_AUD))
+                
+            with col2:
+                st.metric(label="Total Profit", value="${:,.0f}".format(total_profit_overall_AUD))
+            
+        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', std=0.15)
+        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', std=0.15)
         # st.dataframe(cashflow_df, hide_index=True)
         # st.write(f'Average Revenue: Rp.{cashflow_df["Revenue"].mean():,.0f}')
         # st.write(f'Total Revenue: Rp.{cashflow_df["Revenue"].sum():,.0f}')
         
         cashflow_df.to_csv('corporate_cashflow.csv', index=False)
+        cashflow_df_AUD.to_csv('corporate_cashflow_AUD.csv', index=False)
         
     st.divider()
     
