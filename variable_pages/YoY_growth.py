@@ -9,7 +9,7 @@ def app():
     st.write("If we have a multiple years to calculate, we will average the YoY growth over the years.")
     
     st.markdown("##### Formula")
-    st.image(r'variable_pages\YoY_growth_formula.png')
+    st.image(r'variable_pages/YoY_growth_formula.png')
 
 
     st.markdown('##### Baseline Value Assumption')

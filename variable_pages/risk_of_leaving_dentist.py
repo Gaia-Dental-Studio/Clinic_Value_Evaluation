@@ -12,10 +12,10 @@ def app():
     st.write("The impact itself is measured by the percentage of revenue that the dentist contributes to the clinic's total revenue.")
     
     st.markdown("##### Formula")
-    st.image(r'variable_pages\risk_of_leaving_dentist_formula.png')
+    st.image(r'variable_pages/risk_of_leaving_dentist_formula.png')
     st.write("For example if a particular dentist contributes 20% of the total revenue, the risk of leaving for that particular dentist is translated as expected reduction of revenue by 20%.")
 
-    dataframe = pd.read_csv(r'variable_pages\dentist_contribution.csv')
+    dataframe = pd.read_csv(r'variable_pages/dentist_contribution.csv')
     
     st.markdown('##### Baseline Assumption')
     

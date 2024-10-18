@@ -88,16 +88,16 @@ class ModelCorporateWellness:
         
         if pricing_basis == 'Dr.Riesqi':
                     # Load treatment prices CSV
-            self.prices_df = pd.read_csv(r'corporate_wellness_data\treatment_prices.csv')
+            self.prices_df = pd.read_csv(r'corporate_wellness_data/treatment_prices.csv')
             
             # Load treatment costs CSV
-            self.costs_df = pd.read_csv(r'corporate_wellness_data\treatment_costs.csv')
-            self.dsp_df = pd.read_csv(r'corporate_wellness_data\dsp.csv')
+            self.costs_df = pd.read_csv(r'corporate_wellness_data/treatment_costs.csv')
+            self.dsp_df = pd.read_csv(r'corporate_wellness_data/dsp.csv')
         
         elif pricing_basis == 'GAIA Indonesia':
-            self.prices_df = pd.read_csv(r'corporate_wellness_data\treatment_prices_GAIA_IDR.csv')
-            self.costs_df = pd.read_csv(r'corporate_wellness_data\treatment_costs_GAIA_IDR.csv')
-            self.dsp_df = pd.read_csv(r'corporate_wellness_data\dsp_GAIA_IDR.csv')
+            self.prices_df = pd.read_csv(r'corporate_wellness_data/treatment_prices_GAIA_IDR.csv')
+            self.costs_df = pd.read_csv(r'corporate_wellness_data/treatment_costs_GAIA_IDR.csv')
+            self.dsp_df = pd.read_csv(r'corporate_wellness_data/dsp_GAIA_IDR.csv')
             
     
     def calculate_ARO(self, treatment_price_df=None, treatment_cost_df=None):
@@ -317,8 +317,8 @@ class ModelSchoolOutreach:
         self.discount_family = discount_family
         
         # Load the treatment prices CSV
-        self.treatment_prices_df = pd.read_csv(r'school_outreach_data\treatment_prices_new.csv')
-        self.event_cost_df = pd.read_csv(r'school_outreach_data\event_cost.csv')
+        self.treatment_prices_df = pd.read_csv(r'school_outreach_data/treatment_prices_new.csv')
+        self.event_cost_df = pd.read_csv(r'school_outreach_data/event_cost.csv')
 
     def initial_price_df(self):
         # Prepare the DataFrame and add discount columns
@@ -439,8 +439,8 @@ class ModelAgecareOutreach:
         
         
         # Load the treatment prices CSV
-        self.treatment_prices_df = pd.read_csv(r'agecare_outreach_data\treatment_prices.csv')
-        self.event_cost_df = pd.read_csv(r'agecare_outreach_data\event_cost.csv')
+        self.treatment_prices_df = pd.read_csv(r'agecare_outreach_data/treatment_prices.csv')
+        self.event_cost_df = pd.read_csv(r'agecare_outreach_data/event_cost.csv')
 
     
     def initial_price_df(self):
@@ -497,8 +497,8 @@ class ModelSpecialNeedsOutreach:
         
         
         # Load the treatment prices CSV
-        self.treatment_prices_df = pd.read_csv(r'special_needs_outreach_data\treatment_prices.csv')
-        self.event_cost_df = pd.read_csv(r'special_needs_outreach_data\event_cost.csv')
+        self.treatment_prices_df = pd.read_csv(r'special_needs_outreach_data/treatment_prices.csv')
+        self.event_cost_df = pd.read_csv(r'special_needs_outreach_data/event_cost.csv')
 
     
     def initial_price_df(self):

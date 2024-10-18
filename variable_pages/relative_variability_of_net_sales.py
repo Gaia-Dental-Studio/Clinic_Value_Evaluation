@@ -10,7 +10,7 @@ def app():
     st.write("If the value of relative variability is high, it means that the Net Sales performance are not stable which is less favorable, and the other way around.")
     
     st.markdown("##### Formula")
-    st.image(r'variable_pages\CV_net_sales.png')
+    st.image(r'variable_pages/CV_net_sales.png')
 
 
     st.markdown('##### Baseline Value Assumption')

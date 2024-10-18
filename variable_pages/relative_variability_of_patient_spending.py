@@ -14,7 +14,7 @@ def app():
     st.write("If the value of relative variability is high, it means that the spending of patients are lopsided, with high indication that some patients are spending much more, and most are spending much less. This is unfavorable because if it is the case, our potential in increasing revenue is limited to few numbers of high spending patients.")
     
     st.markdown("##### Formula")
-    st.image(r'variable_pages\CV_patient_spending.png')
+    st.image(r'variable_pages/CV_patient_spending.png')
 
 
     st.markdown('##### Baseline Value Assumption')
