@@ -517,6 +517,7 @@ def app():
 
         output_variables['EBIT'] = model.ebit
         output_variables['EBIT Ratio'] = model.ebit_ratio
+        output_variables['General Expense'] = output_variables['Operational Expense'] + output_variables['Other Expense'] + output_variables['Advertising & Promotion Expense']
         # output_variables['Operating Income'] = output_variables['Net Sales'] + output_variables['Trading Income'] + output_variables['Other Income'] + output_variables['Interest Revenue of Bank'] + output_variables['COGS'] + output_variables['Advertising & Promotion Expense'] + output_variables['Operational Expense'] + output_variables['Other Expense']
 
         # Convert the output_variables dictionary to a DataFrame and save as CSV
