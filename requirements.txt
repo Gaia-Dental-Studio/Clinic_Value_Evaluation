@@ -1,10 +1,12 @@
 matplotlib
+matplotlib
 numpy
+numpy_financial
 pandas
+plotly
 plotly
 scipy
 seaborn
 streamlit
 streamlit_navigation_bar
 streamlit_pdf_viewer
-openpyxl
