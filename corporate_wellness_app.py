@@ -234,8 +234,8 @@ def app():
             with col2:
                 st.metric(label="Total Profit", value="${:,.0f}".format(total_profit_overall_AUD))
             
-        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', std=0.15)
-        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', std=0.15)
+        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', fluctuate= False, std=0.15)
+        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', fluctuate=False, std=0.15)
         # st.dataframe(cashflow_df, hide_index=True)
         # st.write(f'Average Revenue: Rp.{cashflow_df["Revenue"].mean():,.0f}')
         # st.write(f'Total Revenue: Rp.{cashflow_df["Revenue"].sum():,.0f}')
@@ -346,8 +346,8 @@ def app():
             with col2:
                 st.metric(label="Total Profit", value="${:,.0f}".format(total_profit_overall_AUD))
             
-        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', std=0.15)
-        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', std=0.15)
+        cashflow_df = GeneralModel().create_cashflow_df(total_revenue_overall, total_cost_overall, subscription_length, 1, period_type='yearly', fluctuate=False, std=0.15)
+        cashflow_df_AUD = GeneralModel().create_cashflow_df(total_revenue_overall_AUD, total_cost_overall_AUD, subscription_length, 1, period_type='yearly', fluctuate=False, std=0.15)
         # st.dataframe(cashflow_df, hide_index=True)
         # st.write(f'Average Revenue: Rp.{cashflow_df["Revenue"].mean():,.0f}')
         # st.write(f'Total Revenue: Rp.{cashflow_df["Revenue"].sum():,.0f}')

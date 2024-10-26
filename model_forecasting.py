@@ -416,8 +416,9 @@ class ModelForecastPerformance:
         
         return forecast_treatment_df
     
-    
-    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1):
+
+
+    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000):
         """
         Generates a DataFrame of randomly selected treatments for each period in cashflow_df,
         until the accumulated profit (Revenue - Expense) matches the cashflow profit within the specified tolerance.
@@ -427,9 +428,10 @@ class ModelForecastPerformance:
         cashflow_df: DataFrame containing the cashflow for each period with columns Period, Revenue, Expense.
         basis: "Australia" or "Indonesia", determines whether to use AUD or IDR for revenue and expense.
         tolerance: The tolerance level for profit matching (as a fraction, e.g., 0.1 for 10%).
+        number_of_unique_patient: The number of unique customers to generate, default is 1000.
         
         Returns:
-        forecast_treatment_df: DataFrame with columns Period, Treatment, Revenue, Expense.
+        forecast_treatment_df: DataFrame with columns Period, Treatment, Revenue, Expense, Customer ID.
         """
         
         # Define which columns to use for revenue and expense based on the basis
@@ -444,6 +446,9 @@ class ModelForecastPerformance:
         
         # Add a Profit column to cashflow_df
         cashflow_df['Profit'] = cashflow_df['Revenue'] - cashflow_df['Expense']
+        
+        # Generate a list of unique Customer IDs
+        customer_ids = [f'Customer {i}' for i in range(1, number_of_unique_patient + 1)]
         
         # Initialize list to store forecast data
         forecast_data = []
@@ -492,11 +497,15 @@ class ModelForecastPerformance:
                 accumulated_revenue = new_accumulated_revenue
                 accumulated_expense = new_accumulated_expense
                 
+                # Randomly select a Customer ID for this row
+                customer_id = np.random.choice(customer_ids)
+                
                 forecast_data.append({
                     'Period': period,
                     'Treatment': selected_treatment['Treatment'],
                     'Revenue': treatment_revenue,
-                    'Expense': treatment_expense
+                    'Expense': treatment_expense,
+                    'Customer ID': customer_id
                 })
                 
                 # Check if the accumulated profit is within the tolerance bounds
@@ -508,6 +517,7 @@ class ModelForecastPerformance:
         forecast_treatment_df = pd.DataFrame(forecast_data)
         
         return forecast_treatment_df
+
 
 
 
@@ -603,13 +613,14 @@ class ModelForecastPerformance:
 
 
 
-    def summary_table(self, sales_df, debt_repayment_df=None, indirect_expense_df=None):
+    def summary_table(self, sales_df, debt_repayment_df=None, indirect_expense_df=None, by='Product'):
         """
         Generates a summary DataFrame from sales_df and optionally debt_repayment_df by converting revenue and expenses into separate rows.
 
         Parameters:
-        sales_df: DataFrame containing columns 'Period', 'Treatment', 'Revenue', 'Expense'.
+        sales_df: DataFrame containing columns 'Period', 'Treatment', 'Revenue', 'Expense', 'Customer ID'.
         debt_repayment_df: Optional DataFrame containing columns 'Period', 'Expense' for debt repayment.
+        indirect_expense_df: Optional DataFrame containing columns 'Period', 'Expense' for indirect expenses.
 
         Returns:
         fig: Plotly figure displaying the summary table.
@@ -624,25 +635,31 @@ class ModelForecastPerformance:
             treatment = row['Treatment']
             revenue = row['Revenue']
             expense = row['Expense']
+            customer_id = row.get('Customer ID', None)  # Get Customer ID if available, else None
             
-            if revenue >= 0 and expense >= 0:
-                # Add the row for Expense (negative amount)
-                summary_data.append({
-                    'Period': period,
-                    'From': "Clinic",
-                    'To': "Material and Salary",
-                    'Reason': f'COGS for {treatment}',
-                    'Amount': -expense  # Negative value for expense
-                })
-                
-                # Add the row for Revenue (positive amount)
-                summary_data.append({
-                    'Period': period,
-                    'From': 'Customer',
-                    'To': 'Clinic',
-                    'Reason': f'Income for {treatment} Sales',
-                    'Amount': revenue  # Positive value for revenue
-                })
+            # Add the row for Expense (Cash Out)
+            summary_data.append({
+                'Period': period,
+                'From': "Clinic",
+                'To': "Material and Salary",
+                'Reason': f'COGS for {treatment}',
+                'Customer ID': customer_id if expense >= 0 else None,  # Add Customer ID only for sales_df
+                'Cash In': "",  # No cash inflow for expense
+                'Cash Out': -expense,  # Negative value for expense
+
+            })
+            
+            # Add the row for Revenue (Cash In)
+            summary_data.append({
+                'Period': period,
+                'From': 'Customer',
+                'To': 'Clinic',
+                'Reason': f'Income for {treatment} Sales',
+                'Customer ID': customer_id if revenue >= 0 else None,  # Add Customer ID only for sales_df
+                'Cash In': revenue,  # Positive value for revenue
+                'Cash Out': "",  # No cash outflow for revenue
+
+            })
 
         # Process indirect_expenses only if provided
         if indirect_expense_df is not None:
@@ -650,13 +667,15 @@ class ModelForecastPerformance:
                 period = row['Period']
                 expense = row['Expense']
                 
-                # Add row for Debt Repayment (negative amount)
+                # Add row for Indirect Expense (negative amount in Cash Out)
                 summary_data.append({
                     'Period': period,
                     'From': 'Clinic',
                     'To': 'Indirect Expense',
                     'Reason': 'Operating and General Expenses',
-                    'Amount': -expense  # Negative value for expense
+                    'Cash In': 0,  # No cash inflow
+                    'Cash Out': -expense,  # Negative value for expense
+                    'Customer ID': None  # No Customer ID for indirect expenses
                 })
 
         # Process debt_repayment_df only if provided
@@ -665,41 +684,56 @@ class ModelForecastPerformance:
                 period = row['Period']
                 expense = row['Expense']
                 
-                # Add row for Debt Repayment (negative amount)
+                # Add row for Debt Repayment (negative amount in Cash Out)
                 summary_data.append({
                     'Period': period,
                     'From': 'Clinic',
                     'To': 'Bank/Loan Provider',
                     'Reason': 'Debt Repayment',
-                    'Amount': -expense  # Negative value for expense
+                    'Cash In': 0,  # No cash inflow
+                    'Cash Out': -expense,  # Negative value for expense
+                    'Customer ID': None  # No Customer ID for debt repayments
                 })
-                
-        
-        
-        # Convert the collected data into a DataFrame
-        summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Reason', 'Amount'])
-        
-        # Sort the DataFrame by Period
-        summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
-        
-        # Define column widths
-        column_widths = [2, 3, 4, 9, 2]
-        total_width = sum(column_widths)
-        normalized_widths = [width / total_width for width in column_widths]
-        
-        # Create a Plotly table using summary_df
-        fig = go.Figure(data=[go.Table(
-            header=dict(values=list(summary_df.columns),
-                        fill_color='grey',
-                        align='left',
-                        font=dict(color='white', size=15)),
+                    
             
-            cells=dict(values=[summary_df[col] for col in summary_df.columns],
-                    fill_color='lightgrey',
-                    align='left'),
-            columnwidth=normalized_widths  # Apply the normalized widths to the columns
-        )])
-        
-        fig.update_layout(width=700, height=700)
-        
-        return fig
+            if by == 'Product':
+                # Convert the collected data into a DataFrame
+                summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Reason', 'Cash In', 'Cash Out'])
+                
+                # Sort the DataFrame by Period
+                summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
+                
+                # Define column widths
+                column_widths = [2, 3, 3, 11, 2, 2]
+                
+            elif by == 'Customer':
+                # Convert the collected data into a DataFrame
+                summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Customer ID', 'Cash In', 'Cash Out'])
+                
+                # Sort the DataFrame by Period
+                summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
+                
+                # Define column widths
+                column_widths = [2, 3, 3, 4, 2, 2, 2]
+            
+            
+            total_width = sum(column_widths)
+            normalized_widths = [width / total_width for width in column_widths]
+            
+            # Create a Plotly table using summary_df
+            fig = go.Figure(data=[go.Table(
+                header=dict(values=list(summary_df.columns),
+                            fill_color='grey',
+                            align='left',
+                            font=dict(color='white', size=15)),
+                
+                cells=dict(values=[summary_df[col] for col in summary_df.columns],
+                        fill_color='lightgrey',
+                        align='left'),
+                columnwidth=normalized_widths  # Apply the normalized widths to the columns
+            )])
+            
+            fig.update_layout(width=800, height=700)
+            
+            return fig
+

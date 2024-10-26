@@ -67,10 +67,12 @@ class ModelCashflow:
         """
         self.collection_df = {}
 
+
     def cashflow_plot(self):
         """
         Generates an interactive Plotly cashflow plot using Period as the x-axis.
-        Combines data from all added companies and displays their cashflow and cumulative cashflow line.
+        Combines data from all added companies and displays their cashflow and cumulative cashflow line,
+        with additional horizontal reference lines for maximum allowable revenue and expense.
         """
         # Create a Plotly figure
         fig = go.Figure()
@@ -85,10 +87,10 @@ class ModelCashflow:
             fig.add_trace(go.Bar(
                 x=df['Period'], 
                 y=-df['Expense'],  # Expenses are negative
-                name='Expense',  # We only show the company name in the legend
+                name='Expense',  
                 marker_color='#f04343',
-                legendgroup=company_name,  # Group revenue and expense by company for toggling
-                showlegend=False,  # Don't show separate legend for expenses
+                legendgroup=company_name,  
+                showlegend=False,  
                 customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
                 hovertemplate=(
                     f'<b>{company_name}</b><br>' +
@@ -100,25 +102,25 @@ class ModelCashflow:
             fig.add_trace(go.Bar(
                 x=df['Period'], 
                 y=df['Revenue'], 
-                name='Revenue',  # We only show the company name in the legend
-                marker_color='#337dd6' ,
-                legendgroup=company_name,  # Group revenue and expense by company for toggling
-                showlegend=False,  # Don't show the revenue in the legend again
-                customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),  # Include both revenue and expense for hover
+                name='Revenue',  
+                marker_color='#337dd6',
+                legendgroup=company_name,  
+                showlegend=False,  
+                customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
                 hovertemplate=(
                     f'<b>{company_name}</b><br>' +
                     'Revenue: %{customdata[0]:,.0f}<br>'
                 )
             ))
 
-            # Add invisible scatter trace for company name in the legend (black or grey)
+            # Add invisible scatter trace for company name in the legend
             fig.add_trace(go.Scatter(
-                x=[None],  # Empty scatter to only display in legend
+                x=[None],  
                 y=[None],
                 mode='markers',
-                marker=dict(color='grey'),  # Change this to 'black' if you prefer black
+                marker=dict(color='grey'),  
                 name=company_name,
-                legendgroup=company_name,  # Group revenue and expense by company for toggling
+                legendgroup=company_name,  
                 showlegend=True
             ))
 
@@ -149,19 +151,44 @@ class ModelCashflow:
             )
         ))
 
+        # Calculate the mean values for the reference lines
+        mean_revenue = accumulated_revenue.mean()
+        mean_expense = accumulated_expense.mean()
+        max_revenue = mean_revenue * 1.3  # 30% deviation threshold
+        max_expense = -mean_expense * 1.3  # 30% deviation threshold (negative)
+
+        # Add horizontal reference line for maximum allowable revenue
+        fig.add_hline(
+            y=max_revenue, 
+            line=dict(color='blue', dash='dash'), 
+            name='Max Allowable Revenue (30% Tolerance)',
+            annotation_text='Max Revenue (30% Tolerance)', 
+            annotation_position="top right"
+        )
+
+        # Add horizontal reference line for maximum allowable expense
+        fig.add_hline(
+            y=max_expense,  
+            line=dict(color='red', dash='dash'), 
+            name='Max Allowable Expense (30% Tolerance)',
+            annotation_text='Max Expense (30% Tolerance)', 
+            annotation_position="bottom right"
+        )
+
         # Customize the layout
         fig.update_layout(
             title='Cashflow',
             yaxis_title='Amount',
-            xaxis_title='Period',  # Change to Period for the x-axis
-            hovermode='x',  # Ensure hover info displays for all traces on the x-axis
-            bargap=0.2,  # Space between bars
+            xaxis_title='Period',  
+            hovermode='x',  
+            bargap=0.2,  
             plot_bgcolor='white',
-            barmode='relative'  # Stack bars relative to each other (shows totals if multiple are active)
+            barmode='relative'  
         )
 
         # Show the interactive chart
         return fig
+
     
     def create_profit_comparison_matrix(self, scenario_metrics_dict):
         # Step 1: Calculate the profit for each scenario

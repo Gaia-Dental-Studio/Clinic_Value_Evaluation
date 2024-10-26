@@ -25,7 +25,7 @@ class GeneralModel:
             raise ValueError("Invalid period_type. Must be 'monthly' or 'yearly'.")
 
         # If fluctuate is True, apply fluctuation logic using standard deviation
-        if fluctuate:
+        if fluctuate == True:
             # Mean values for revenue and cost per month
             mean_revenue = total_revenue * forecast_periods
             mean_cost = total_cost * forecast_periods
@@ -37,7 +37,7 @@ class GeneralModel:
             revenue_list = fluctuations * (mean_revenue / np.sum(fluctuations))
             cost_list = fluctuations * (mean_cost / np.sum(fluctuations))
             
-        else:
+        elif fluctuate == False:
             # If no fluctuation, evenly distribute the total revenue and cost over the forecast periods
             revenue_list = np.full(forecast_periods, total_revenue)  # Equal revenue across months
             cost_list = np.full(forecast_periods, total_cost)  # Equal cost across months
@@ -48,6 +48,7 @@ class GeneralModel:
             'Revenue': revenue_list,
             'Expense': cost_list
         })
+        
         
         return cashflow_df
     
@@ -538,3 +539,131 @@ class ModelSpecialNeedsOutreach:
     def initial_event_cost_df(self):
         
         return self.event_cost_df
+    
+    
+
+class ModelStructuredSaving:
+    def __init__(self):
+        self.monthly_payment = None
+        self.interest_rate = None
+        self.return_period = None
+        self.payment_period_length = None
+
+
+    def calculate_schedule_fixed(self, monthly_payment, interest_rate, return_period, payment_period_length):
+        self.monthly_payment = monthly_payment
+        self.interest_rate = interest_rate / 100
+        self.return_period = return_period
+        self.payment_period_length = payment_period_length
+        
+        interest_rate = self.interest_rate 
+        
+        """
+        Generates a structured saving plan with monthly payments and returns with interest after a return period.
+        
+        Parameters:
+        monthly_payment: Fixed monthly payment made during the saving period.
+        interest_rate: Annual interest rate (APY) applied to calculate monthly returns.
+        return_period: The number of months after which the returns (principal + interest) start.
+        payment_period_length: The number of months you commit to making monthly payments.
+        
+        Returns:
+        schedule_df: DataFrame with columns 'Period', 'Revenue', 'Expense' representing the payment and return schedule.
+        """
+        
+        # Convert the annual interest rate to a monthly interest rate using APY formula
+        monthly_interest_rate = (1 + interest_rate) ** (1 / 12) - 1
+        
+        # Initialize lists to store the schedule values
+        periods = []
+        revenues = []
+        expenses = []
+        
+        # Iterate over each period to fill the schedule
+        for month in range(1, payment_period_length + return_period + 1):
+            # Track if the month is within the payment period
+            expense = monthly_payment if month <= payment_period_length else 0
+            
+            # Revenue starts being generated after the return_period
+            if month > return_period:
+                # Calculate payback amount (same for each payment)
+                total_revenue = monthly_payment * (1 + monthly_interest_rate) ** return_period  # Payment + interest for return period
+            else:
+                total_revenue = 0
+            
+            # Append the values to the schedule
+            periods.append(month)
+            revenues.append(total_revenue)
+            expenses.append(expense)
+        
+        # Create a DataFrame for the schedule
+        schedule_df = pd.DataFrame({
+            'Period': periods,
+            'Revenue': revenues,
+            'Expense': expenses
+        })
+        
+        return schedule_df
+    
+    def calculate_schedule_percentage(self, payments, interest_rate, return_period, payment_period_length):
+        
+        interest_rate = interest_rate / 100
+        
+        """
+        Generates a structured saving plan with flexible payments and returns with interest after a return period.
+        
+        Parameters:
+        payments: List or array of payments to be made during the saving period.
+        interest_rate: Annual interest rate (APY) applied to calculate monthly returns.
+        return_period: The number of months after which the returns (principal + interest) start.
+        payment_period_length: The number of months you commit to making monthly payments.
+        
+        Returns:
+        schedule_df: DataFrame with columns 'Period', 'Revenue', 'Expense' representing the payment and return schedule.
+        """
+        
+        # Ensure payments array length matches the payment_period_length
+        if len(payments) < payment_period_length:
+            last_payment = payments[-1]
+            payments = payments + [last_payment] * (payment_period_length - len(payments))
+        elif len(payments) > payment_period_length:
+            payments = payments[:payment_period_length]
+        
+        # Convert the annual interest rate to a monthly interest rate using APY formula
+        monthly_interest_rate = (1 + interest_rate) ** (1 / 12) - 1
+        
+        # Initialize lists to store the schedule values
+        periods = []
+        revenues = []
+        expenses = []
+        
+        # Iterate over each period to fill the schedule
+        for month in range(1, payment_period_length + return_period + 1):
+            if month <= payment_period_length:
+                # During the payment period, use the corresponding payment from the array
+                expense = payments[month - 1]
+            else:
+                expense = 0
+            
+            # Revenue starts being generated after the return_period
+            if month > return_period:
+                payback_period = month - return_period
+                # Calculate the payback for the corresponding payment made during the payback period
+                initial_payment = payments[payback_period - 1]  # Payment from the corresponding payback period
+                total_revenue = initial_payment * (1 + monthly_interest_rate) ** return_period
+            else:
+                total_revenue = 0
+            
+            # Append the values to the schedule
+            periods.append(month)
+            revenues.append(total_revenue)
+            expenses.append(expense)
+        
+        # Create a DataFrame for the schedule
+        schedule_df = pd.DataFrame({
+            'Period': periods,
+            'Revenue': revenues,
+            'Expense': expenses
+        })
+        
+        return schedule_df
