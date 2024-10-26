@@ -85,7 +85,7 @@ def app():
     uploaded_file = st.selectbox("Choose Clinic", ["Acre Clarity Dental"], index=0)
     
     if uploaded_file == "Acre Clarity Dental":
-        uploaded_file = r'company_data\Acre Data.xlsx'
+        uploaded_file = r'company_data/Acre Data.xlsx'
 
     # Initialize the ModelClinicValue class
     model = ModelClinicValue({})
