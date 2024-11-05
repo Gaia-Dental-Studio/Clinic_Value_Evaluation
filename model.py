@@ -32,6 +32,9 @@ class ModelClinicValue:
         self.number_of_patients = company_variables.get('Number of Active Patients', 0)
         self.relative_variability_patient_spending = company_variables.get('Relative Variation of Patient Spending', 0)
         self.potential_existing_dentist_leaving = company_variables.get('Potential Existing Dentist Leaving', 0)
+        self.fitout_value = company_variables.get('Fitout Value', 0)
+        self.last_fitout_year = company_variables.get('Last Fitout Year', 0)
+        
         # self.number_of_dentist = company_variables.get('Current Number of Dentist', 0)
         # self.projected_number_of_dentist = company_variables.get('Projected Number of Dentist', 0)
         
@@ -125,6 +128,19 @@ class ModelClinicValue:
         
         return adjustment_value
     
+    def fitout_adjusting_value (self, fitout_value, fitout_year, baseline_fitout_value, baseline_fitout_year):
+        
+        fitout_depreciation_period = 10
+        
+        fitout_baseline_remaining_value = baseline_fitout_value * (fitout_depreciation_period - baseline_fitout_year) / fitout_depreciation_period
+        
+        fitout_baseline_value = fitout_value * (fitout_depreciation_period - fitout_year) / fitout_depreciation_period
+        
+        adjustment_value = fitout_baseline_value - fitout_baseline_remaining_value 
+        
+        
+        return adjustment_value
+    
 
     def update_variable_from_uploaded_file(self, uploaded_file):
         # Read the Excel file and extract data from the 'main_variables' sheet
@@ -160,6 +176,8 @@ class ModelClinicValue:
             self.number_of_patients = variable_dict.get('Number of Active Patients', 0)
             self.relative_variability_patient_spending = variable_dict.get('Relative Variation of Patient Spending', 0)
             self.potential_existing_dentist_leaving = variable_dict.get('Potential Existing Dentist Leaving', 0)
+            self.fitout_value = variable_dict.get('Fitout Value', 0)
+            self.last_fitout_year = variable_dict.get('Last Fitout Year', 0)
             # self.number_of_dentist = variable_dict.get('Current Number of Dentist', 0)
             # self.projected_number_of_dentist = variable_dict.get('Projected Number of Dentist', 0)
             

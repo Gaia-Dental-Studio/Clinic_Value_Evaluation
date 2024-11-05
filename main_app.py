@@ -6,11 +6,14 @@ import pickle
 import variable_pages.EBIT
 import variable_pages.EBIT_ratio
 import variable_pages.YoY_growth
+import variable_pages.equipment_usage_ratio
 import variable_pages.equipment_value
 import variable_pages.relative_variability_of_net_sales
 import variable_pages.number_of_active_patients
 import variable_pages.relative_variability_of_patient_spending
 import variable_pages.risk_of_leaving_dentist
+import variable_pages.fitout_value
+import variable_pages.last_fitout_years
 import matplotlib.pyplot as plt
 import plotly.express as px
 
@@ -28,12 +31,15 @@ def app():
         
         with col1:
             base_ebit = 250000
-            base_equipment_value = 80816.5
+            base_equipment_value = 80826.5
             base_net_sales_growth = 0.1
             base_number_of_active_patients = 1045
             base_number_of_dentist = 2
             base_relative_variability_patient_spending = 0.15
             base_risk_of_leaving_dentist = 0
+            base_fitout_cost = 1728000000 / 10000 # 5 times of Indonesia cost converted into AUD
+            
+            
             st.metric("EBIT", f"$ {base_ebit:,.0f}", help="Net Sales - COGS - Operating Expenses")
             with st.popover("details"):
                 variable_pages.EBIT.app()
@@ -43,6 +49,12 @@ def app():
             st.metric("Equipments Value", f"$ {base_equipment_value:,.0f}")
             with st.popover("details"):
                 variable_pages.equipment_value.app()
+                
+            st.metric("Fit Out Value", f"$ {base_fitout_cost:,.0f}")
+            with st.popover("details"):
+                variable_pages.fitout_value.app()
+            
+            
             
             st.metric("Number of Active Patients", base_number_of_active_patients, help="Number of active unique patients in the clinic for the last one year")
             with st.popover("details"):
@@ -60,6 +72,7 @@ def app():
             base_relative_variability_net_sales = 0.15
             base_equipment_usage_ratio = 0.5
             base_projected_number_of_dentist = 2
+            base_last_fitout = 5
             
             
             st.metric("Relative Variability of Net Sales", f"{base_relative_variability_net_sales * 100:.0f}%", help="Standard Deviation of Net Sales / Mean Net Sales. Net Sales here is in monthly terms")
@@ -67,7 +80,11 @@ def app():
                 variable_pages.relative_variability_of_net_sales.app()            
             st.metric("Equipment Usage Ratio", f"{base_equipment_usage_ratio * 100:.2f}%", help="Percentage of equipment usage from its expected lifetime")
             with st.popover("details"):
-                st.write('on progress')
+                variable_pages.equipment_usage_ratio.app()
+                
+            st.metric("Last Fit Out", f"{base_last_fitout} years ago", help="Explain when did last fit out occured")
+            with st.popover("details"):
+                variable_pages.last_fitout_years.app()
             
             st.metric("Relative Variability of Patient Spending", f"{base_relative_variability_patient_spending * 100:.0f}%", help="Standard Deviation of Patient Spending / Mean Patient Spending. Patient Spending here is the yearly spending of each active unique patients")
             with st.popover("details"):
@@ -265,6 +282,25 @@ def app():
         
         selected_equipment = company_variables['Equipment_Life'][company_variables['Equipment_Life']['Own?'] == True]
         company_variables["Equipments Value"] = (selected_equipment['Quantity'] * selected_equipment['Price']).sum()
+        
+        
+        
+        
+        st.markdown("### Fit Out Activity")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            
+            fitout_value = st.number_input("Fit Out Value ($)", value=model.fitout_value if model.fitout_value is not None else 0, help="The value of the last fit out activity in the clinic")
+            company_variables["Fitout Value"] = fitout_value
+        with col2:
+            last_fitout = st.number_input("Last Fit Out (Years Ago)", value=int(model.last_fitout_year if model.last_fitout_year is not None else 0), help="The number of years since the last fit out activity",)
+            company_variables['Last Fitout Year'] = last_fitout
+    
+    
+
+        
 
         st.markdown("### Dentist Availability")
         
@@ -305,6 +341,8 @@ def app():
     st.session_state['Evaluated'] = False
     # Button to trigger the evaluation
     if st.button("Evaluate"):
+        
+        selected_equipment.to_csv("actual_equipment_life.csv", index=False)
         
         st.markdown("## Variable Summary")
         
@@ -400,6 +438,7 @@ def app():
             
             st.markdown('#### Equipments')
             model.equipment_life = selected_equipment
+            company_variables['Equipment Life'] = model.equipment_life
             
             equipment_usage_ratio, total_equipments, total_remaining_value = model.calculate_equipment_usage_ratio()
             
@@ -415,6 +454,21 @@ def app():
             with st.popover("details", use_container_width=True):
                 st.dataframe(model.equipment_life.drop(columns=['Own?', 'Quantity']), hide_index=True)
                 st.write("Above is the list of equipments in the clinic, with the expected lifetime and current lifetime usage.")
+                
+                
+            st.markdown('### Fit Out')
+        
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.metric("Fit Out Value", f"$ {fitout_value:,.0f}", delta=f"{fitout_value - base_fitout_cost:,.0f}")
+                
+            with col2:
+                st.metric("Last Fit Out", f"{last_fitout} years ago", delta=f"{last_fitout - base_last_fitout} years", delta_color='inverse')
+                
+            with st.popover("details", use_container_width=True):
+                st.write("**Fit out** value is the value of the last fit out activity in the clinic, while **Last Fit Out** is the number of years since the last fit out activity.")
+                st.write("Both of these variables are used to calculate the clinic valuation. The higher the value of the fit out, the higher the clinic valuation. And the lower the number of years since the last fit out, the higher the clinic valuation.")
                 
             st.markdown('#### Dentist Availability')
             
@@ -511,7 +565,10 @@ def app():
             'Relative Variation of Net Sales': relative_variability_net_sales,
             'Number of Active Patients': number_of_active_patients,
             'Relative Variation of Patient Spending': relative_variability_patient_spending,
-            'Risk of Leaving Dentist': risk
+            'Risk of Leaving Dentist': risk,
+            'Fitout Value': company_variables.get("Fitout Value", 0),
+            'Last Fitout Year': company_variables.get("Last Fitout Year", 0),
+            'Equipment Life': company_variables.get('Equipment Life', None)
             
         }
 
@@ -531,10 +588,12 @@ def app():
         st.markdown("## Clinic Value")
         
         st.markdown("#### Calculating Current Clinic Value")
-        st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Clininc Value Calculation'** tab")
+        st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Current Value Calculation Step'** tab")
 
         ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
         equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)
+        fitout_adjusting_value = model.fitout_adjusting_value(output_variables['Fitout Value'], output_variables['Last Fitout Year'], base_fitout_cost, base_last_fitout)
+
         ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Risk of Leaving Dentist'])
         ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
         ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
@@ -560,9 +619,13 @@ def app():
             st.metric("Adjustment due Equipments", f"$ {equipment_adjusting_value:,.0f}", help="Adjustment due to equipment usage ratio and specific equipment availability within the clinic")
             
         with col2:
-            clinic_valuation_adjusted = clinic_valuation + equipment_adjusting_value
-            st.metric("Clinic Valuation Adjusted", f"$ {clinic_valuation_adjusted:,.0f}")
-            st.caption("Clinic Valuation Adjusted = Clinic Valuation + Adjustment due Equipments")
+            st.metric("Adjustment due Fit Out", f"$ {fitout_adjusting_value:,.0f}", help="Adjustment due to last fit out activity in the clinic")
+
+        
+        clinic_valuation_adjusted = clinic_valuation + equipment_adjusting_value + fitout_adjusting_value
+        st.metric("Clinic Valuation Adjusted", f"$ {clinic_valuation_adjusted:,.0f}")
+        st.caption("Clinic Valuation Adjusted = Clinic Valuation + Adjustment due Equipments")
+        
         
         output_variables['EBIT Multiple'] = ebit_multiple
         output_variables['Clinic Valuation Adjusted'] = clinic_valuation_adjusted

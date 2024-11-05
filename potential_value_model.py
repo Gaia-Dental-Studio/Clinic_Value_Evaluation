@@ -73,28 +73,54 @@ def app():
 
     
     if calculate:
+        
+        number_of_months = model.total_days_from_start(period_forecast)
+        
         model_cashflow = ModelCashflow()
         
         forecast_df = model.forecast_revenue_expenses(period_forecast)
         
         indirect_expense = model.forecast_indicect_cost(period_forecast)
-
         
         # FORECASTING TREATMENTS
         
         treatment_details = pd.read_csv("treatment_with_details.csv")
         forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, forecast_df)
+    
         
+        # st.plotly_chart(model.summary_table(forecast_df_with_treatments, by=show_by))
         
         forecast_df = forecast_df_with_treatments[['Period', 'Revenue', 'Expense']].groupby('Period').sum().reset_index()
 
+
         sliced_amortization_df = sliced_amortization_df[:period_forecast] if acquiring_funding == "Borrow" else None
+         
+        equipment_df = model.equipment_to_cashflow(clinic_data['Equipment Life'], period_forecast)
+        
+        
+        fitout_df = model.fitout_to_cashflow(clinic_data['Fitout Value'], clinic_data['Last Fitout Year'] ,period_forecast)
+
+
+        # payload_1 = {
+        #     "forecast_df": forecast_df,
+        #     "debt_repayment": sliced_amortization_df if acquiring_funding == "Borrow" else None,
+        #     "indirect_expense": indirect_expense
+        # }
 
         # forecast_df = pd.read_csv("current_clinic_cashflow_forecast.csv")
         model_cashflow.add_company_data("Gross Profit", forecast_df)
         model_cashflow.add_company_data("Debt Repayment", sliced_amortization_df) if acquiring_funding == "Borrow" else None
         model_cashflow.add_company_data("Indirect Expense", indirect_expense)
-        forecast_linechart = model_cashflow.cashflow_plot()
+        model_cashflow.add_company_data("Equipment Procurement", equipment_df)
+        model_cashflow.add_company_data("Fit Out", fitout_df)
+        
+
+            
+        
+        forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months)
+        forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly')
+        forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly')
+        
         
         clinic_value = clinic_data['Clinic Valuation Adjusted']
         clinic_ebit_multiple = clinic_data['EBIT Multiple']
@@ -126,7 +152,17 @@ def app():
             with col3:
                 st.metric("Monthly Relative Variation", f"{current_net_sales_relative_variation * 100}%")
             
-            st.plotly_chart(forecast_linechart)
+            tab1, tab2, tab3 = st.tabs(["Daily", "Weekly", "Monthly"])
+        
+            with tab1:
+            
+                st.plotly_chart(forecast_linechart_daily)
+                
+            with tab2:  
+                st.plotly_chart(forecast_linechart_weekly)
+            
+            with tab3:
+                st.plotly_chart(forecast_linechart_monthly)
             
             with st.popover("explain Cash flow for Approach 1"):
                 st.write(
@@ -138,7 +174,7 @@ def app():
                     f"from the previous year EBIT of ${current_ebit:,.0f}, while the monthly variations capture "
                     f"the clinic's historical fluctuation patterns (relative variation, which is {current_net_sales_relative_variation * 100:.0f}%)"
                     )           
-            st.plotly_chart(model.summary_table(forecast_df_with_treatments, sliced_amortization_df, indirect_expense, by=show_by))
+            st.plotly_chart(model.summary_table(forecast_df_with_treatments, sliced_amortization_df, indirect_expense, equipment_df, fitout_df, by=show_by))
             
 
         
@@ -158,9 +194,25 @@ def app():
             model_cashflow.add_company_data("Gross Profit", MA_forecast_df)
             model_cashflow.add_company_data("Debt Repayment", sliced_amortization_df) if acquiring_funding == "Borrow" else None
             model_cashflow.add_company_data("Indirect Expense", MA_indirect_cost)
+            model_cashflow.add_company_data("Equipment Procurement", equipment_df)
+            model_cashflow.add_company_data("Fit Out", fitout_df)
             
-            forecast_MA_linechart = model_cashflow.cashflow_plot()
-            st.plotly_chart(forecast_MA_linechart)
+            MA_forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months)
+            MA_forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly')
+            MA_forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly')
+            
+            tab1, tab2, tab3 = st.tabs(["Daily", "Weekly", "Monthly"])
+    
+            with tab1:
+                st.plotly_chart(MA_forecast_linechart_daily)
+                
+            with tab2:  
+                st.plotly_chart(MA_forecast_linechart_weekly)
+            
+            with tab3:
+                st.plotly_chart(MA_forecast_linechart_monthly)
+        
+
             
             with st.popover("explain Cash flow for Approach 2"):
                 st.write(
@@ -170,7 +222,7 @@ def app():
                     "to predict the first forecast months, for it will keeps smoothing out the data until the last month of the forecast period.")
                 st.write("Currently the Moving Average Period is set to 3 months, which means it will use the average of the last 3 months of historical data")
             
-            st.plotly_chart(model.summary_table(MA_forecast_df_with_treatments, sliced_amortization_df, indirect_expense, by=show_by))
+            st.plotly_chart(model.summary_table(MA_forecast_df_with_treatments, sliced_amortization_df, indirect_expense, equipment_df, fitout_df, by=show_by))
 
         #load clinic_value.pkl and get the value of it to be the value of variable 'clinic_value'
         
@@ -214,20 +266,24 @@ def app():
     
 
 
-    if button("Calculate New Clinic Value", key="calculate-strategy"):
+    if button("Calculate New Cash Flow", key="calculate-strategy"):
         
         corporate_wellness_df = None
         structured_saving_df = None
         
         if corporate_wellness == True:
             corporate_wellness_df = pd.read_csv("corporate_cashflow_AUD.csv")[:period_forecast]
+            corporate_wellness_df['Period'] = corporate_wellness_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
             
         if structured_saving == True:
             structured_saving_df = pd.read_csv("structured_saving_cashflow.csv")[:period_forecast]
+            structured_saving_df['Period'] = structured_saving_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
+        
+        
 
         model_cashflow.add_company_data("Corporate Wellness", corporate_wellness_df) if corporate_wellness_df is not None else None
         model_cashflow.add_company_data("Structured Saving", structured_saving_df) if structured_saving_df is not None else None
-        st.plotly_chart(model_cashflow.cashflow_plot())
+        st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly'))
         
         
         

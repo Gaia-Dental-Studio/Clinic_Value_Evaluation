@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 
+
 class ModelCashflow:
     def __init__(self):
         # Initialize an empty dictionary to hold dataframes for different companies
@@ -18,7 +19,7 @@ class ModelCashflow:
             raise ValueError("Dataframe must contain 'Period', 'Revenue', and 'Expense' columns.")
         
         # Ensure Period is treated as integer values for plotting
-        df['Period'] = df['Period'].astype(int)
+        # df['Period'] = df['Period'].astype(int)
         
         # Add company data to collection
         self.collection_df[company_name] = df
@@ -68,29 +69,70 @@ class ModelCashflow:
         self.collection_df = {}
 
 
-    def cashflow_plot(self):
+
+
+    def cashflow_plot(self, number_of_days, granularity='daily'):
         """
         Generates an interactive Plotly cashflow plot using Period as the x-axis.
-        Combines data from all added companies and displays their cashflow and cumulative cashflow line,
-        with additional horizontal reference lines for maximum allowable revenue and expense.
+        Allows granularity to be set to 'daily', 'weekly', or 'monthly'.
         """
         # Create a Plotly figure
         fig = go.Figure()
+
+        # Starting date
+        start_date = pd.Timestamp('2024-01-01')
+
+        # Generate date_array based on the input number_of_days
+        date_array = pd.date_range(start=start_date, periods=number_of_days, freq='D')
+        date_series = pd.Series(date_array, name="Period")
+        elongated_df = pd.DataFrame({'Period': date_series})
 
         # Variable to accumulate the total revenue and expense
         accumulated_revenue = None
         accumulated_expense = None
 
-        # Loop through each company in the collection and plot the revenue and expense
+        # Define a function to generate the Period label based on the granularity
+        def get_period_label(date, granularity):
+            if granularity == 'weekly':
+                return f"W{date.isocalendar().week - date.replace(day=1).isocalendar().week + 1}-{date.strftime('%b')}-{date.strftime('%y')}"
+            elif granularity == 'monthly':
+                return date.strftime('%b-%y')
+            else:  # 'daily'
+                return date
+
+        # Loop through each company in the collection and process data
         for company_name, df in self.collection_df.items():
-            # Add bars for expenses for each company (same color for all companies' expense)
+            df['Period'] = pd.to_datetime(df['Period'])
+            
+            # Align company DataFrame with the elongated date range
+            df = pd.merge(elongated_df, df, on='Period', how='left')
+            df['Revenue'].fillna(0, inplace=True)
+            df['Expense'].fillna(0, inplace=True)
+
+            # Create a new Period label based on the granularity
+            df['GranularPeriod'] = df['Period'].apply(lambda x: get_period_label(x, granularity))
+            df['Order'] = df['Period'].rank(method='dense').astype(int)
+
+            # Aggregate the data based on the new GranularPeriod
+            if granularity != 'daily':
+                df = df.groupby('GranularPeriod', as_index=False).agg({
+                    'Revenue': 'sum',
+                    'Expense': 'sum',
+                    'Order': 'mean'
+                })
+            else:
+                df['GranularPeriod'] = df['Period']  # Keep original date for daily
+
+            df = df.sort_values(by='Order')
+
+            # Add bars for expenses for each company
             fig.add_trace(go.Bar(
-                x=df['Period'], 
+                x=df['GranularPeriod'], 
                 y=-df['Expense'],  # Expenses are negative
-                name='Expense',  
+                name='Expense',
                 marker_color='#f04343',
-                legendgroup=company_name,  
-                showlegend=False,  
+                legendgroup=company_name,
+                showlegend=False,
                 customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
                 hovertemplate=(
                     f'<b>{company_name}</b><br>' +
@@ -98,14 +140,14 @@ class ModelCashflow:
                 )
             ))
 
-            # Add bars for revenue for each company (same color for all companies' revenue)
+            # Add bars for revenue for each company
             fig.add_trace(go.Bar(
-                x=df['Period'], 
-                y=df['Revenue'], 
-                name='Revenue',  
+                x=df['GranularPeriod'], 
+                y=df['Revenue'],
+                name='Revenue',
                 marker_color='#337dd6',
-                legendgroup=company_name,  
-                showlegend=False,  
+                legendgroup=company_name,
+                showlegend=False,
                 customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
                 hovertemplate=(
                     f'<b>{company_name}</b><br>' +
@@ -115,12 +157,12 @@ class ModelCashflow:
 
             # Add invisible scatter trace for company name in the legend
             fig.add_trace(go.Scatter(
-                x=[None],  
+                x=[None],
                 y=[None],
                 mode='markers',
-                marker=dict(color='grey'),  
+                marker=dict(color='grey'),
                 name=company_name,
-                legendgroup=company_name,  
+                legendgroup=company_name,
                 showlegend=True
             ))
 
@@ -132,16 +174,16 @@ class ModelCashflow:
                 accumulated_revenue += df['Revenue']
                 accumulated_expense += df['Expense']
 
-        # Calculate the net and cumulative cashflow
+        # Calculate net and cumulative cashflow
         net_cashflow = accumulated_revenue - accumulated_expense
         cumulative_cashflow = net_cashflow.cumsum()
 
         # Add a line for cumulative cashflow
         fig.add_trace(go.Scatter(
-            x=df['Period'], 
-            y=cumulative_cashflow, 
-            mode='lines+markers', 
-            name='Cumulative Cashflow', 
+            x=df['GranularPeriod'],
+            y=cumulative_cashflow,
+            mode='lines+markers',
+            name='Cumulative Cashflow',
             marker_color='black',
             line=dict(dash='solid'),
             hovertemplate=(
@@ -157,37 +199,36 @@ class ModelCashflow:
         max_revenue = mean_revenue * 1.3  # 30% deviation threshold
         max_expense = -mean_expense * 1.3  # 30% deviation threshold (negative)
 
-        # Add horizontal reference line for maximum allowable revenue
+        # Add horizontal reference lines for max allowable revenue and expense
         fig.add_hline(
-            y=max_revenue, 
-            line=dict(color='blue', dash='dash'), 
+            y=max_revenue,
+            line=dict(color='blue', dash='dash'),
             name='Max Allowable Revenue (30% Tolerance)',
-            annotation_text='Max Revenue (30% Tolerance)', 
+            annotation_text='Max Revenue (30% Tolerance)',
             annotation_position="top right"
         )
-
-        # Add horizontal reference line for maximum allowable expense
         fig.add_hline(
-            y=max_expense,  
-            line=dict(color='red', dash='dash'), 
+            y=max_expense,
+            line=dict(color='red', dash='dash'),
             name='Max Allowable Expense (30% Tolerance)',
-            annotation_text='Max Expense (30% Tolerance)', 
+            annotation_text='Max Expense (30% Tolerance)',
             annotation_position="bottom right"
         )
 
-        # Customize the layout
+        # Customize layout
         fig.update_layout(
-            title='Cashflow',
+            title=f'Cashflow ({granularity.capitalize()})',
             yaxis_title='Amount',
-            xaxis_title='Period',  
-            hovermode='x',  
-            bargap=0.2,  
+            xaxis_title='Period',
+            hovermode='x',
+            bargap=0.2,
             plot_bgcolor='white',
-            barmode='relative'  
+            barmode='relative'
         )
 
-        # Show the interactive chart
+        # Return the interactive chart
         return fig
+
 
     
     def create_profit_comparison_matrix(self, scenario_metrics_dict):

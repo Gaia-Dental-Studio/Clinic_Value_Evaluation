@@ -8,7 +8,7 @@ import current_value_calculation
 with st.sidebar:
     page = st.radio(
         "Choose a page",
-        ("Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator")
+        ("Main Calculator", "Current Value Calculation Step", "Sensitivity Analysis", "Potential Value Calculator")
     )
 
 # page = st_navbar(["Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator"])

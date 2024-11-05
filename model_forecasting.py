@@ -3,6 +3,9 @@ import numpy as np
 import plotly.express as px
 import numpy_financial as npf
 import plotly.graph_objects as go
+import random
+import calendar
+from datetime import datetime, date
 
 
 
@@ -21,12 +24,19 @@ class ModelForecastPerformance:
         indirect_cost = self.general_expense / 12
         periods = np.arange(1, number_of_forecasted_periods + 1)
         
+        periods = [self.generate_date_from_month(int(period), method='last_day') for period in periods]
+        
         # Create a DataFrame for the result
         forecast_df = pd.DataFrame({
             'Period': periods,
             'Revenue': 0,
             'Expense': np.round(indirect_cost, 0)  # Round Revenue values to 2 decimal places
         })
+        
+        forecast_df['Period'] = pd.to_datetime(forecast_df['Period'], format='%d-%m-%Y')
+        forecast_df['Period'] = forecast_df['Period'].dt.date
+        forecast_df = forecast_df.sort_values(by='Period').reset_index(drop=True)
+        
         
         return forecast_df
         
@@ -73,15 +83,15 @@ class ModelForecastPerformance:
             total_ebit_after = np.sum(ebit_values) * 12 / number_of_forecasted_periods
             # print("Total EBIT after: ", total_ebit_after)
             growth = (total_ebit_after - self.ebit) / self.ebit
-            print("New EBIT", total_ebit_after)
-            print("Old EBIT", self.ebit)
-            print("Minimum Growth", minimum_growth)
-            print("Growth: ", growth)
+            # print("New EBIT", total_ebit_after)
+            # print("Old EBIT", self.ebit)
+            # print("Minimum Growth", minimum_growth)
+            # print("Growth: ", growth)
             
             mean_ebit_values = np.mean(ebit_values)
             std_ebit_values = np.std(ebit_values)
             
-            print("Coefficient of Variation: ", std_ebit_values / mean_ebit_values)
+            # print("Coefficient of Variation: ", std_ebit_values / mean_ebit_values)
             
             # print(self.net_sales_growth)
 
@@ -306,6 +316,9 @@ class ModelForecastPerformance:
             # Accumulate total interest
             total_interest_paid += interest_payment
         
+        
+        month_list = [self.generate_date_from_month(int(period), method='first_day') for period in month_list]
+        
         # Create DataFrame for amortization schedule
         amortization_df = pd.DataFrame({
             'Period': month_list,
@@ -317,6 +330,10 @@ class ModelForecastPerformance:
         
         # Calculate total interest paid over the loan term
         total_interest = round(total_interest_paid, 2)
+        
+        amortization_df['Period'] = pd.to_datetime(amortization_df['Period'], format='%d-%m-%Y')
+        amortization_df['Period'] = amortization_df['Period'].dt.date
+        amortization_df = amortization_df.sort_values(by='Period').reset_index(drop=True)
         
         return amortization_df, round(monthly_payment, 2), round(principal, 2), total_interest
     
@@ -416,6 +433,28 @@ class ModelForecastPerformance:
         
         return forecast_treatment_df
     
+    def total_days_from_start(self, number_of_months):
+        # Predefined start year and month
+        start_year = 2024
+        start_month = 1
+
+        total_days = 0
+        current_year = start_year
+        current_month = start_month
+
+        for _ in range(number_of_months):
+            # Get the number of days in the current month and year
+            days_in_month = calendar.monthrange(current_year, current_month)[1]
+            total_days += days_in_month
+
+            # Move to the next month
+            if current_month == 12:
+                current_month = 1
+                current_year += 1
+            else:
+                current_month += 1
+
+        return total_days
 
 
     def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000):
@@ -501,7 +540,7 @@ class ModelForecastPerformance:
                 customer_id = np.random.choice(customer_ids)
                 
                 forecast_data.append({
-                    'Period': period,
+                    'Period': self.generate_date_from_month(int(period)),
                     'Treatment': selected_treatment['Treatment'],
                     'Revenue': treatment_revenue,
                     'Expense': treatment_expense,
@@ -516,10 +555,43 @@ class ModelForecastPerformance:
         # Create a DataFrame from the forecast data
         forecast_treatment_df = pd.DataFrame(forecast_data)
         
+        # sort by 'Period' column of date 
+        forecast_treatment_df['Period'] = pd.to_datetime(forecast_treatment_df['Period'], format='%d-%m-%Y')
+        forecast_treatment_df['Period'] = forecast_treatment_df['Period'].dt.date
+        forecast_treatment_df = forecast_treatment_df.sort_values(by='Period').reset_index(drop=True)
+        
+        
         return forecast_treatment_df
 
 
 
+    def generate_date_from_month(self, month, method='random'):
+        # Starting year
+        start_year = 2024
+
+        # Calculate the year and month from the given month index
+        year = start_year + (month - 1) // 12
+        month = (month - 1) % 12 + 1  # Ensure month wraps around to a valid 1-12 range
+
+        # Get the number of days in the given month and year
+        days_in_month = calendar.monthrange(year, month)[1]
+
+        if method == 'random':
+            # Generate a random day within the valid range for the month
+            day = random.randint(1, days_in_month)
+        elif method == 'last_day':
+            # Set the day to the last day of the month
+            day = days_in_month
+        elif method == 'first_day':
+            # Set the day to the first day of the month
+            day = 1
+        else:
+            raise ValueError("Invalid method. Choose 'random', 'last_day', or 'first_day'.")
+
+        # Format the date as dd-mm-yyyy
+        generated_date = date(year, month, day).strftime("%d-%m-%Y")
+
+        return generated_date
 
 
 
@@ -613,7 +685,7 @@ class ModelForecastPerformance:
 
 
 
-    def summary_table(self, sales_df, debt_repayment_df=None, indirect_expense_df=None, by='Product'):
+    def summary_table(self, sales_df, debt_repayment_df=None, indirect_expense_df=None, equipment_df=None, fitout_df=None, by='Product'):
         """
         Generates a summary DataFrame from sales_df and optionally debt_repayment_df by converting revenue and expenses into separate rows.
 
@@ -682,7 +754,7 @@ class ModelForecastPerformance:
         if debt_repayment_df is not None:
             for _, row in debt_repayment_df.iterrows():
                 period = row['Period']
-                expense = row['Expense']
+                expense = int(row['Expense'])
                 
                 # Add row for Debt Repayment (negative amount in Cash Out)
                 summary_data.append({
@@ -694,46 +766,165 @@ class ModelForecastPerformance:
                     'Cash Out': -expense,  # Negative value for expense
                     'Customer ID': None  # No Customer ID for debt repayments
                 })
-                    
-            
-            if by == 'Product':
-                # Convert the collected data into a DataFrame
-                summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Reason', 'Cash In', 'Cash Out'])
                 
-                # Sort the DataFrame by Period
-                summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
+        if equipment_df is not None:
+            for _, row in equipment_df.iterrows():
+                period = row['Period']
+                expense = row['Expense']
+                equipment = row['Equipment']
                 
-                # Define column widths
-                column_widths = [2, 3, 3, 11, 2, 2]
+                # Add row for Debt Repayment (negative amount in Cash Out)
+                summary_data.append({
+                    'Period': period,
+                    'From': 'Clinic',
+                    'To': 'Equipment Sellers',
+                    'Reason': 'Buy New Equipment of ' + equipment,
+                    'Cash In': 0,  # No cash inflow
+                    'Cash Out': -expense,  # Negative value for expense
+                    'Customer ID': None  # No Customer ID for debt repayments
+                })
+        
+        if fitout_df is not None:
+            for _, row in fitout_df.iterrows():
+                period = row['Period']
+                expense = row['Expense']
                 
-            elif by == 'Customer':
-                # Convert the collected data into a DataFrame
-                summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Customer ID', 'Cash In', 'Cash Out'])
-                
-                # Sort the DataFrame by Period
-                summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
-                
-                # Define column widths
-                column_widths = [2, 3, 3, 4, 2, 2, 2]
-            
-            
-            total_width = sum(column_widths)
-            normalized_widths = [width / total_width for width in column_widths]
-            
-            # Create a Plotly table using summary_df
-            fig = go.Figure(data=[go.Table(
-                header=dict(values=list(summary_df.columns),
-                            fill_color='grey',
-                            align='left',
-                            font=dict(color='white', size=15)),
-                
-                cells=dict(values=[summary_df[col] for col in summary_df.columns],
-                        fill_color='lightgrey',
-                        align='left'),
-                columnwidth=normalized_widths  # Apply the normalized widths to the columns
-            )])
-            
-            fig.update_layout(width=800, height=700)
-            
-            return fig
+                # Add row for Debt Repayment (negative amount in Cash Out)
+                summary_data.append({
+                    'Period': period,
+                    'From': 'Clinic',
+                    'To': 'Fitout Provider',
+                    'Reason': 'Fitout Activity',
+                    'Cash In': 0,  # No cash inflow
+                    'Cash Out': -expense,  # Negative value for expense
+                    'Customer ID': None  # No Customer ID for debt repayments
+                })
+    
 
+        
+        if by == 'Product':
+            # Convert the collected data into a DataFrame
+            summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Reason', 'Cash In', 'Cash Out'])
+            summary_df['Period'] = pd.to_datetime(summary_df['Period'], format='%d-%m-%Y')
+            summary_df['Period'] = summary_df['Period'].dt.date 
+            
+            # Sort the DataFrame by Period
+            summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
+            
+            # Define column widths
+            column_widths = [3, 3, 3, 10, 2, 2]
+            
+        elif by == 'Customer':
+            # Convert the collected data into a DataFrame
+            summary_df = pd.DataFrame(summary_data, columns=['Period', 'From', 'To', 'Customer ID', 'Cash In', 'Cash Out'])
+            
+            summary_df['Period'] = pd.to_datetime(summary_df['Period'], format='%d-%m-%Y')
+            summary_df['Period'] = summary_df['Period'].dt.date 
+            
+            # Sort the DataFrame by Period
+            summary_df = summary_df.sort_values(by='Period').reset_index(drop=True)
+            
+            # Define column widths
+            column_widths = [3, 3, 3, 4, 2, 2, 2]
+        
+
+        total_width = sum(column_widths)
+        normalized_widths = [width / total_width for width in column_widths]
+        
+        # Create a Plotly table using summary_df
+        fig = go.Figure(data=[go.Table(
+            header=dict(values=list(summary_df.columns),
+                        fill_color='grey',
+                        align='left',
+                        font=dict(color='white', size=15)),
+            
+            cells=dict(values=[summary_df[col] for col in summary_df.columns],
+                    fill_color='lightgrey',
+                    align='left'),
+            columnwidth=normalized_widths  # Apply the normalized widths to the columns
+        )])
+        
+        fig.update_layout(width=800, height=700)
+        
+        return fig
+    
+    
+    def equipment_to_cashflow(self, df, period):
+        # Create a list to hold data for the output DataFrame
+        cashflow_data = []
+        
+        df['Expected Lifetime'] = df['Expected Lifetime'] * 12
+        df['Current Lifetime Usage'] = df['Current Lifetime Usage'] * 12
+        df['Remaining Lifetime'] = df['Expected Lifetime'] - df['Current Lifetime Usage']
+
+        for i in range(1, period + 1):
+            # Filter equipment that needs to be repurchased at the current period
+            equipment_due = df[df['Remaining Lifetime'] == i]
+            
+            if not equipment_due.empty:
+                for _, row in equipment_due.iterrows():
+                    cashflow_data.append({
+                        'Period': i,
+                        'Equipment': row['Equipment'],
+                        'Expense': row['Price']
+                    })
+            else:
+                # Append a row with Equipment as None and Expense as 0 when no equipment is due
+                cashflow_data.append({
+                    'Period': i,
+                    'Equipment': 'None',
+                    'Expense': 0
+                })
+                
+        
+        result = pd.DataFrame(cashflow_data)
+        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day'))
+
+        result['Revenue'] = 0  # Add a Revenue column with 0 values
+        
+        result['Period'] = pd.to_datetime(result['Period'], format='%d-%m-%Y')
+        result['Period'] = result['Period'].dt.date
+        result = result.sort_values(by='Period').reset_index(drop=True)
+        
+        
+        
+        return result
+
+
+    def fitout_to_cashflow(self, fitout_value, last_fitout, period):
+        
+        period_to_fitout = 10 # in years
+        
+        next_fitout_period = period_to_fitout - last_fitout # in years
+        next_fitout_period_in_months = next_fitout_period * 12
+        
+        cashflow_data = []
+        
+        for i in range(1, period + 1):
+            # Filter equipment that needs to be repurchased at the current period
+            fitout_due = next_fitout_period_in_months
+            
+            if i == fitout_due:
+   
+                cashflow_data.append({
+                    'Period': i,
+                    'Expense': fitout_value
+                })
+            else:
+                # Append a row with Equipment as None and Expense as 0 when no equipment is due
+                cashflow_data.append({
+                    'Period': i,
+                    'Expense': 0
+                })
+                
+        result = pd.DataFrame(cashflow_data)
+        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day'))
+
+        result['Revenue'] = 0  # Add a Revenue column with 0 values
+        
+        result['Period'] = pd.to_datetime(result['Period'], format='%d-%m-%Y')
+        result['Period'] = result['Period'].dt.date
+        result = result.sort_values(by='Period').reset_index(drop=True)
+        
+        
+        return result
