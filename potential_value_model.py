@@ -246,6 +246,7 @@ def app():
     with col1:
         corporate_wellness = st.checkbox("Corporate Wellness Program", value=False)
         structured_saving = st.checkbox("Structured Saving Plan", value=False)
+        fair_credit = st.checkbox("Fair Credit Program", value=False)
         
     with col2:
         with st.popover("details"):
@@ -270,6 +271,7 @@ def app():
         
         corporate_wellness_df = None
         structured_saving_df = None
+        fair_credit_df = None
         
         if corporate_wellness == True:
             corporate_wellness_df = pd.read_csv("corporate_cashflow_AUD.csv")[:period_forecast]
@@ -279,11 +281,18 @@ def app():
             structured_saving_df = pd.read_csv("structured_saving_cashflow.csv")[:period_forecast]
             structured_saving_df['Period'] = structured_saving_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
         
-        
+        if fair_credit == True:
+            fair_credit_df = pd.read_csv("fair_credit_cashflow.csv")[:period_forecast]
+            fair_credit_df['Period'] = fair_credit_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
 
         model_cashflow.add_company_data("Corporate Wellness", corporate_wellness_df) if corporate_wellness_df is not None else None
         model_cashflow.add_company_data("Structured Saving", structured_saving_df) if structured_saving_df is not None else None
+        model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None
         st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly'))
+        
+        # model_cashflow.remove_all_companies()
+        # model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None
+        # st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly'))
         
         
         

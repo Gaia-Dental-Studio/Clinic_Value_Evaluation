@@ -1,14 +1,14 @@
 Net Sales,COGS,Trading Income,Other Income,Interest Revenue of Bank,Advertising & Promotion Expense,Operational Expense,Other Expense,Depreciation of Equipment Clinic Expense,Depreciation of Equipment Non Clinic Expense,Bank Tax Expense,Other Tax,Equipments Value,Equipment Usage Ratio,Total Equipments,Net Sales Growth,Total Remaining Value,Relative Variation of Net Sales,Number of Active Patients,Relative Variation of Patient Spending,Risk of Leaving Dentist,Fitout Value,Last Fitout Year,Equipment Life,EBIT,EBIT Ratio,General Expense
-1862464.0,-1053087.0,0.0,6932.0,4335.0,0,-10216.0,-319766.0,0.0,0.0,-1547.0,0.0,80826.5,0.68,20,0.13,16649.65,0.15,1045,0.15,0.27882429306415785,172800.0,9,"                 Equipment  Own?  Quantity  Expected Lifetime  Current Lifetime Usage    Price
-0        Intra Oral Camera  True         1                  5                     4.5   1729.5
-1           Bleaching Unit  True         1                  5                     4.5    487.5
-2        Ultrasonic Scaler  True         1                  5                     4.5   1349.5
-3               Light Cure  True         1                  5                     4.5    595.0
-4              Dental Unit  True         1                  5                     4.5  30500.0
-5           Portable Xrays  True         1                  5                     4.5   9750.0
+1862464.0,-1053087.0,0.0,6932.0,4335.0,0,-10216.0,-319766.0,0.0,0.0,-1547.0,0.0,80826.5,0.6,20,0.13,22415.55,0.15,1045,0.15,0.27882429306415785,172800.0,9,"                 Equipment  Own?  Quantity  Expected Lifetime  Current Lifetime Usage    Price
+0        Intra Oral Camera  True         1                  5                     4.0   1729.5
+1           Bleaching Unit  True         1                  5                     2.5    487.5
+2        Ultrasonic Scaler  True         1                  5                     4.0   1349.5
+3               Light Cure  True         1                  5                     2.5    595.0
+4              Dental Unit  True         1                  5                     4.0  30500.0
+5           Portable Xrays  True         1                  5                     4.0   9750.0
 6                Endomotor  True         1                  5                     4.5    997.5
 7               Autoclaves  True         1                  5                     4.5  11500.0
-8       Ultrasonic Cleaner  True         1                  5                     4.5   2500.0
+8       Ultrasonic Cleaner  True         1                  5                     2.5   2500.0
 9               Water Tank  True         1                  5                     2.5    900.0
 10  Prophylaxis Hand Piece  True         1                  5                     2.5    175.0
 11           Handpiece Set  True         1                  5                     2.5   2000.0

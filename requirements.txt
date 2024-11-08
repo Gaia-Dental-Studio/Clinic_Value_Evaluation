@@ -11,3 +11,4 @@ streamlit
 streamlit_navigation_bar
 streamlit_pdf_viewer
 streamlit-extras
+random

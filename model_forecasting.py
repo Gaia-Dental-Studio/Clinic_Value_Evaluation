@@ -12,11 +12,11 @@ from datetime import datetime, date
 class ModelForecastPerformance:
     def __init__(self, company_variables):
         
-        self.ebit = company_variables['EBIT']
-        self.net_sales_growth = company_variables['Net Sales Growth']
-        self.relative_variability_net_sales = company_variables['Relative Variation of Net Sales']
-        self.ebit_ratio = company_variables['EBIT Ratio']
-        self.general_expense = -company_variables['General Expense']
+        self.ebit = company_variables.get('EBIT', 0)
+        self.net_sales_growth = company_variables.get('Net Sales Growth', 0)
+        self.relative_variability_net_sales = company_variables.get('Relative Variation Net Sales', 0)
+        self.ebit_ratio = company_variables.get('EBIT Ratio', 0)
+        self.general_expense = -company_variables.get('General Expense', 0)
 
 
 
@@ -590,6 +590,7 @@ class ModelForecastPerformance:
 
         # Format the date as dd-mm-yyyy
         generated_date = date(year, month, day).strftime("%d-%m-%Y")
+        generated_date = datetime.strptime(generated_date, "%d-%m-%Y")
 
         return generated_date
 
