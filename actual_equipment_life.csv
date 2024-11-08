@@ -1,13 +1,13 @@
 Equipment,Own?,Quantity,Expected Lifetime,Current Lifetime Usage,Price
-Intra Oral Camera,True,1,5,2.5,1729.5
-Bleaching Unit,True,1,5,2.5,487.5
-Ultrasonic Scaler,True,1,5,2.5,1349.5
-Light Cure,True,1,5,2.5,595.0
-Dental Unit,True,1,5,2.5,30500.0
-Portable Xrays,True,1,5,2.5,9750.0
-Endomotor,True,1,5,2.5,997.5
-Autoclaves,True,1,5,2.5,11500.0
-Ultrasonic Cleaner,True,1,5,2.5,2500.0
+Intra Oral Camera,True,1,5,4.5,1729.5
+Bleaching Unit,True,1,5,4.5,487.5
+Ultrasonic Scaler,True,1,5,4.5,1349.5
+Light Cure,True,1,5,4.5,595.0
+Dental Unit,True,1,5,4.5,30500.0
+Portable Xrays,True,1,5,4.5,9750.0
+Endomotor,True,1,5,4.5,997.5
+Autoclaves,True,1,5,4.5,11500.0
+Ultrasonic Cleaner,True,1,5,4.5,2500.0
 Water Tank,True,1,5,2.5,900.0
 Prophylaxis Hand Piece,True,1,5,2.5,175.0
 Handpiece Set,True,1,5,2.5,2000.0
