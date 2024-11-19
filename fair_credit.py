@@ -109,7 +109,7 @@ with col1:
 
 with col2:
     cogs_percentage = st.slider("Select the COGS percentage", min_value=0.0, max_value=1.0, value=0.5, step=0.1)
-    ratio_defaulting = st.slider("Select the probability of customers defaulting", min_value=0.0, max_value=1.0, value=0.2, step=0.1)
+    ratio_defaulting = st.slider("Select the probability of customers defaulting", min_value=0.0, max_value=1.0, value=0.2, step=0.01)
 
 
 customer_schedules, aggregate_schedule = loan_amortization_schedule(amount_borrowed, fair_credit_user)
