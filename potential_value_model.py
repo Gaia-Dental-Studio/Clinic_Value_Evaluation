@@ -9,16 +9,25 @@ from model_forecasting import ModelForecastPerformance
 from cashflow_plot import ModelCashflow
 from streamlit_extras.stateful_button import button
 import structured_saving as structured_saving_app
+import os
     
 def app():
 
     st.title("Potential Value Calculator")
     
+    clinic_data_set = pickle.load(open('clinic_value_set.pkl', 'rb'))
+    
+    
+    selected_clinic = st.selectbox("Select Clinic", list(clinic_data_set.keys()))
+    
+    
     
     with st.container(border=True):
         st.markdown('### Clinic Value to Acquire')
         st.write("Based on Calculation of Clinic Value of observed clinic, here is the value of the clinic to acquire")
-        clinic_data = pickle.load(open('clinic_value.pkl', 'rb'))
+        
+        clinic_data = clinic_data_set[selected_clinic]
+        
         clinic_value = clinic_data['Clinic Valuation Adjusted']
         st.metric("Clinic Value", f"${clinic_value:,.0f}")
         model = ModelForecastPerformance(clinic_data)
@@ -36,9 +45,11 @@ def app():
                 interest_rate = st.number_input("Annual Interest Rate (%)", min_value=0, value=12, step=1)
                 loan_term = st.number_input("Loan Term (years)", min_value=1, value=5, step=1)
                 
+            buying_year = st.number_input("Buying Year", min_value=2021, value=2025, step=1)
+                
             borrowed = (clinic_value * (percentage_borrow/100))
             principal = borrowed - ((upfront_payment/100) * borrowed)
-            amortization_df, monthly_payment, total_principal, total_interest = model.loan_amortization_schedule(principal, interest_rate, loan_term)
+            amortization_df, monthly_payment, total_principal, total_interest = model.loan_amortization_schedule(principal, interest_rate, loan_term, start_year=buying_year)
             
             sliced_amortization_df = amortization_df[['Period', 'Monthly Payment']]
             sliced_amortization_df = sliced_amortization_df.rename(columns={'Monthly Payment':"Expense"})
@@ -65,8 +76,14 @@ def app():
     st.markdown("### Projection of Current Clinic (without Improvement)")
 
     show_by = st.radio("Show by", ["Product", "Customer"], index=0)
+    
+    col1, col2 = st.columns(2)
 
-    period_forecast = st.number_input("Period to Forecast (months)", min_value=1, value=12, step=1)
+    with col1:
+        period_forecast = st.number_input("Period to Forecast (months)", min_value=1, value=12, step=1)
+        
+    with col2:
+        start_year = st.number_input("Start Year", min_value=2021, value=2025, step=1)
     
 
     calculate = button("Calculate", key="calculate-existing")
@@ -74,31 +91,39 @@ def app():
     
     if calculate:
         
-        number_of_months = model.total_days_from_start(period_forecast)
+        number_of_months = model.total_days_from_start(period_forecast, start_year=start_year) 
         
         model_cashflow = ModelCashflow()
         
-        forecast_df = model.forecast_revenue_expenses(period_forecast)
+        forecast_df = model.forecast_revenue_expenses(period_forecast, start_month=1)
+        # st.dataframe(forecast_df)
         
-        indirect_expense = model.forecast_indicect_cost(period_forecast)
+        indirect_expense = model.forecast_indirect_cost(period_forecast, start_year=start_year)
+        
+        
         
         # FORECASTING TREATMENTS
         
         treatment_details = pd.read_csv("treatment_with_details.csv")
-        forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, forecast_df)
-    
+        item_code_df = pd.read_csv("dummy_clinic_model\cleaned_item_code.csv")
+        
+        
+        # forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, forecast_df)
+        forecast_df_with_treatments = model.generate_forecast_item_code_by_profit(item_code_df, forecast_df, patient_pool=clinic_data['Patient Pool'], start_year=start_year)
+        
+        # st.dataframe(forecast_df_with_treatments)
         
         # st.plotly_chart(model.summary_table(forecast_df_with_treatments, by=show_by))
         
         forecast_df = forecast_df_with_treatments[['Period', 'Revenue', 'Expense']].groupby('Period').sum().reset_index()
-
+        # st.dataframe(forecast_df)
 
         sliced_amortization_df = sliced_amortization_df[:period_forecast] if acquiring_funding == "Borrow" else None
          
-        equipment_df = model.equipment_to_cashflow(clinic_data['Equipment Life'], period_forecast)
+        equipment_df = model.equipment_to_cashflow(clinic_data['Equipment Life'], period_forecast, start_year=start_year)
         
         
-        fitout_df = model.fitout_to_cashflow(clinic_data['Fitout Value'], clinic_data['Last Fitout Year'] ,period_forecast)
+        fitout_df = model.fitout_to_cashflow(clinic_data['Fitout Value'], clinic_data['Last Fitout Year'] ,period_forecast, start_year=start_year)
 
 
         # payload_1 = {
@@ -114,12 +139,14 @@ def app():
         model_cashflow.add_company_data("Equipment Procurement", equipment_df)
         model_cashflow.add_company_data("Fit Out", fitout_df)
         
-
+        def generate_datetime(start_year=2024, start_month=1):
+            return f"{start_year}-{start_month}-01"
             
         
-        forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months)
-        forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly')
-        forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly')
+        forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months, start_date=generate_datetime(start_year=start_year))
+        forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly',  start_date=generate_datetime(start_year=start_year))
+        forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly',  start_date=generate_datetime(start_year=start_year))
+        forecast_linechart_quarterly = model_cashflow.cashflow_plot(number_of_months, granularity='quarterly', start_date=generate_datetime(start_year=start_year))
         
         
         clinic_value = clinic_data['Clinic Valuation Adjusted']
@@ -139,7 +166,7 @@ def app():
         with st.container(border=True):
             st.markdown("**Approach 1: Foreacast based on previous year's EBIT, EBIT Ratio, and YoY Growth**")
             
-            st.write("Based on previous years' EBIT, Year-on-Year growth and Revenue Relative Variation of the clinic, here is the projected EBIT flow for the next 12 months")
+            st.write("Based on previous years' EBIT, Year-on-Year growth and Revenue Relative Variation of the clinic, here is the projected EBIT flow for the next 12 months. We call this approach as Fluctuation-Adjusted EBIT Forecast.")
 
             col1, col2, col3 = st.columns(3)
             
@@ -147,12 +174,12 @@ def app():
                 st.metric("Previous year EBIT", f"${current_ebit:,.0f}")
                 
             with col2:
-                st.metric("Year-on-Year Growth", f"{current_growth * 100}%")
+                st.metric("Year-on-Year Growth", f"{np.round(current_growth * 100,2)}%")
                 
             with col3:
-                st.metric("Monthly Relative Variation", f"{current_net_sales_relative_variation * 100}%")
+                st.metric("Monthly Relative Variation", f"{np.round(current_net_sales_relative_variation * 100,2)}%")
             
-            tab1, tab2, tab3 = st.tabs(["Daily", "Weekly", "Monthly"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Daily", "Weekly", "Monthly", "Quarterly"])
         
             with tab1:
             
@@ -163,7 +190,10 @@ def app():
             
             with tab3:
                 st.plotly_chart(forecast_linechart_monthly)
-            
+                
+            with tab4:
+                st.plotly_chart(forecast_linechart_quarterly)          
+                  
             with st.popover("explain Cash flow for Approach 1"):
                 st.write(
                     f"The predicted Cash flow for the next {period_forecast} months is generated with random fluctuations, "
@@ -181,13 +211,17 @@ def app():
         with st.container(border=True):
             st.markdown("**Approach 2: Forecast using Three Month Moving Average based on previous months data**")
             
-            MA_forecast_df = model.forecast_revenue_expenses(3)
-            MA_forecast_df = model.forecast_revenue_expenses_MA(MA_forecast_df, period_forecast, 3)
+            MA_forecast_df = model.forecast_revenue_expenses(3) # instead of using actual data, this method forecast three months as basis of most recent months of historical data 
             
-            MA_forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, MA_forecast_df)
+            MA_forecast_df = model.forecast_revenue_expenses_MA(MA_forecast_df, period_forecast, 3, start_month=1)
+            
+            
+            
+            # MA_forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, MA_forecast_df)
+            MA_forecast_df_with_treatments = model.generate_forecast_item_code_by_profit(item_code_df, MA_forecast_df, start_year=start_year)
             MA_forecast_df = MA_forecast_df_with_treatments[['Period', 'Revenue', 'Expense']].groupby('Period').sum().reset_index()
             
-            MA_indirect_cost = model.forecast_indicect_cost(period_forecast)
+            MA_indirect_cost = model.forecast_indirect_cost(period_forecast, start_year=start_year)
             
             
             model_cashflow.remove_all_companies()
@@ -197,9 +231,9 @@ def app():
             model_cashflow.add_company_data("Equipment Procurement", equipment_df)
             model_cashflow.add_company_data("Fit Out", fitout_df)
             
-            MA_forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months)
-            MA_forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly')
-            MA_forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly')
+            MA_forecast_linechart_daily = model_cashflow.cashflow_plot(number_of_months, start_date=generate_datetime(start_year=start_year))
+            MA_forecast_linechart_weekly = model_cashflow.cashflow_plot(number_of_months, granularity='weekly', start_date=generate_datetime(start_year=start_year))
+            MA_forecast_linechart_monthly = model_cashflow.cashflow_plot(number_of_months, granularity='monthly', start_date=generate_datetime(start_year=start_year))
             
             tab1, tab2, tab3 = st.tabs(["Daily", "Weekly", "Monthly"])
     
@@ -220,7 +254,7 @@ def app():
                     "The method is used to smooth out the random fluctuations in the data.")
                 st.write("It will use the average of the last months (depends on specified Moving Average Period) of historical data"
                     "to predict the first forecast months, for it will keeps smoothing out the data until the last month of the forecast period.")
-                st.write("Currently the Moving Average Period is set to 3 months, which means it will use the average of the last 3 months of historical data")
+                st.write("Currently the Moving Average Period is set to 3 months, which means it will use the average of the last 3 months of historical data. We call this approach as Moving Average Forecast")
             
             st.plotly_chart(model.summary_table(MA_forecast_df_with_treatments, sliced_amortization_df, indirect_expense, equipment_df, fitout_df, by=show_by))
 
@@ -231,7 +265,42 @@ def app():
 
 
         potential_ebit_after_12_months = current_ebit_after_12_months
+        
+        
+        
+        # SAVE INTO PKL
+        
+        file_name = 'clinic_projected_cashflow_set.pkl'
+        ID = selected_clinic
+
+        # Initialize or load existing dictionary
+        if os.path.exists(file_name):
+            # Load existing data
+            with open(file_name, 'rb') as f:
+                clinic_projected_cashflow_set = pickle.load(f)
+        else:
+            # Start with an empty dictionary
+            clinic_projected_cashflow_set = {}
+        
    
+        clinic_projected_cashflow_set[ID] = {
+            "Approach 1": 
+                {"Gross Profit": forecast_df,
+                "Debt Repayment": sliced_amortization_df if acquiring_funding == "Borrow" else None,
+                "Indirect Expense": indirect_expense,
+                "Equipment Procurement": equipment_df,
+                "Fit Out": fitout_df},
+            "Approach 2": 
+                {"Gross Profit": MA_forecast_df,
+                "Debt Repayment": sliced_amortization_df if acquiring_funding == "Borrow" else None,
+                "Indirect Expense": MA_indirect_cost,
+                "Equipment Procurement": equipment_df,
+                "Fit Out": fitout_df}
+        }
+        
+        # save into pkl
+        with open(file_name, 'wb') as f:
+            pickle.dump(clinic_projected_cashflow_set, f)
    
     st.divider()
 
@@ -275,20 +344,29 @@ def app():
         
         if corporate_wellness == True:
             corporate_wellness_df = pd.read_csv("corporate_cashflow_AUD.csv")[:period_forecast]
-            corporate_wellness_df['Period'] = corporate_wellness_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
+            corporate_wellness_df['Period'] = corporate_wellness_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day', start_year=start_year))
+            clinic_projected_cashflow_set[selected_clinic]["Approach 1"]["Corporate Wellness"] = corporate_wellness_df
+            clinic_projected_cashflow_set[selected_clinic]["Approach 2"]["Corporate Wellness"] = corporate_wellness_df
             
         if structured_saving == True:
             structured_saving_df = pd.read_csv("structured_saving_cashflow.csv")[:period_forecast]
-            structured_saving_df['Period'] = structured_saving_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
+            structured_saving_df['Period'] = structured_saving_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day', start_year=start_year))
+            clinic_projected_cashflow_set[selected_clinic]["Approach 1"]["Structured Saving"] = structured_saving_df
+            clinic_projected_cashflow_set[selected_clinic]["Approach 2"]["Structured Saving"] = structured_saving_df
         
         if fair_credit == True:
             fair_credit_df = pd.read_csv("fair_credit_cashflow.csv")[:period_forecast]
-            fair_credit_df['Period'] = fair_credit_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day'))
+            fair_credit_df['Period'] = fair_credit_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day', start_year=start_year))
+            clinic_projected_cashflow_set[selected_clinic]["Approach 1"]["Fair Credit"] = fair_credit_df
+            clinic_projected_cashflow_set[selected_clinic]["Approach 2"]["Fair Credit"] = fair_credit_df
 
         model_cashflow.add_company_data("Corporate Wellness", corporate_wellness_df) if corporate_wellness_df is not None else None
         model_cashflow.add_company_data("Structured Saving", structured_saving_df) if structured_saving_df is not None else None
         model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None
-        st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly'))
+        st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly', start_date=generate_datetime(start_year=start_year)))
+        
+        
+    st.write(clinic_projected_cashflow_set)
         
         # model_cashflow.remove_all_companies()
         # model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None

@@ -4,11 +4,12 @@ import main_app
 import monte_carlo_app
 import potential_value_model
 import current_value_calculation
+import multiple_asset_evaluation
 # Using "with" notation
 with st.sidebar:
     page = st.radio(
         "Choose a page",
-        ("Main Calculator", "Current Value Calculation Step", "Sensitivity Analysis", "Potential Value Calculator")
+        ("Main Calculator", "Current Value Calculation Step", "Sensitivity Analysis", "Potential Value Calculator", "Multiple Asset Evaluation")
     )
 
 # page = st_navbar(["Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator"])
@@ -23,3 +24,6 @@ elif page == "Potential Value Calculator":
     
 elif page == "Current Value Calculation":
     current_value_calculation.app()
+    
+elif page == "Multiple Asset Evaluation":
+    multiple_asset_evaluation.app()

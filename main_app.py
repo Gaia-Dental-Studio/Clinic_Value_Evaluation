@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from model import ModelClinicValue
+from model import ModelTransformTransactionData
 import pickle
+import os
 import variable_pages.EBIT
 import variable_pages.EBIT_ratio
 import variable_pages.YoY_growth
@@ -33,9 +35,9 @@ def app():
             base_ebit = 250000
             base_equipment_value = 80826.5
             base_net_sales_growth = 0.1
-            base_number_of_active_patients = 1045
+            base_number_of_active_patients = 1000
             base_number_of_dentist = 2
-            base_relative_variability_patient_spending = 0.15
+            base_relative_variability_patient_spending = 0.25
             base_risk_of_leaving_dentist = 0
             base_fitout_cost = 1728000000 / 10000 # 5 times of Indonesia cost converted into AUD
             
@@ -99,17 +101,41 @@ def app():
     # File upload widget
     # uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
     
-    uploaded_file = st.selectbox("Choose Clinic", ["Acre Clarity Dental"], index=0)
+    # uploaded_file = st.selectbox("Choose Clinic", ["Acre Clarity Dental"], index=0)
     
-    if uploaded_file == "Acre Clarity Dental":
-        uploaded_file = r'company_data/Acre Data.xlsx'
+    # Dummy Data
+    
+    # case example is dataset 1
+    
+    # read pkl file
+    with open(r'dummy_clinic_model/pkl_files/dataset_1/pool_clinic_df.pkl', 'rb') as f:
+        pool_clinic_df = pickle.load(f)
+    
+    uploaded_file = st.selectbox("Choose Clinic", list(pool_clinic_df.keys()), index=0)
+    
+
 
     # Initialize the ModelClinicValue class
     model = ModelClinicValue({})
-
+    
+    transaction_df = pool_clinic_df[uploaded_file]['Gross Profit']
+    indirect_cost_df = pool_clinic_df[uploaded_file]['Indirect Cost']
+    model_transform = ModelTransformTransactionData(transaction_df, indirect_cost_df)
+    transformed_uploaded_file = model_transform.prepare_all_data()
+    
+    
     # If a file is uploaded, update the model variables with data from the file
     if uploaded_file:
-        model.update_variable_from_uploaded_file(uploaded_file)
+        model.update_variable_from_uploaded_dictionary(transformed_uploaded_file)
+        # Previously were
+        # model.update_variable_from_uploaded_file(transformed_uploaded_file)
+    
+    
+    # if uploaded_file == "Acre Clarity Dental":
+    #     uploaded_file = r'company_data/Acre Data.xlsx'
+    #     model.update_variable_from_uploaded_file(uploaded_file)      
+
+
 
     # Section for manual input of company variables
     st.header("Set Company Variable")
@@ -292,10 +318,10 @@ def app():
         
         with col1:
             
-            fitout_value = st.number_input("Fit Out Value ($)", value=model.fitout_value if model.fitout_value is not None else 0, help="The value of the last fit out activity in the clinic")
+            fitout_value = st.number_input("Fit Out Value ($)", value=base_fitout_cost if model.fitout_value == 0 else model.fitout_value, help="The value of the last fit out activity in the clinic")
             company_variables["Fitout Value"] = fitout_value
         with col2:
-            last_fitout = st.number_input("Last Fit Out (Years Ago)", value=int(model.last_fitout_year if model.last_fitout_year is not None else 0), help="The number of years since the last fit out activity",)
+            last_fitout = st.number_input("Last Fit Out (Years Ago)", value=int(base_last_fitout if model.last_fitout_year == 0 else model.last_fitout_year), help="The number of years since the last fit out activity",)
             company_variables['Last Fitout Year'] = last_fitout
     
     
@@ -506,13 +532,13 @@ def app():
                     tab1, tab2 = st.tabs(["Summarize by Patient", "Summarize by Transaction"])
                     
                     with tab1:
-                        patient_transaction_df = pd.DataFrame(model.patient_transaction.groupby('Patient_ID')['Price'].sum().sort_values(ascending=False).reset_index())
+                        patient_transaction_df = pd.DataFrame(model.patient_transaction.groupby('Patient ID')['Revenue'].sum().sort_values(ascending=False).reset_index())
                         st.dataframe(patient_transaction_df, hide_index=True)
                         
                         st.write("Above data is sample data")
                     
                     with tab2:
-                        patient_transaction_df_2 = pd.DataFrame(model.patient_transaction.groupby('Treatment')['Price'].sum().sort_values(ascending=False).reset_index())
+                        patient_transaction_df_2 = pd.DataFrame(model.patient_transaction.groupby('Code')['Revenue'].sum().sort_values(ascending=False).reset_index())
                         st.dataframe(patient_transaction_df_2, hide_index=True)
                         
                         st.write("Above data is sample data")
@@ -523,10 +549,10 @@ def app():
                 st.metric("Relative Variation of Patient Spending", f"{relative_variability_patient_spending * 100:.0f}%", delta=f"{(relative_variability_patient_spending - base_relative_variability_patient_spending)*100:.0f}%", delta_color="inverse")
                 
                 with st.popover("details"):
-                        patient_transaction_df = pd.DataFrame(model.patient_transaction.groupby('Patient_ID')['Price'].sum().sort_values(ascending=False).reset_index())
+                        patient_transaction_df = pd.DataFrame(model.patient_transaction.groupby('Patient ID')['Revenue'].sum().sort_values(ascending=False).reset_index())
 
                         # Create a swarm plot using Plotly
-                        fig_swarm_patient_spending = px.strip(patient_transaction_df, y='Price', 
+                        fig_swarm_patient_spending = px.strip(patient_transaction_df, y='Revenue', 
                         title='Swarm Plot of Patient Total Spending', 
                         template='plotly_white',)
                         
@@ -575,6 +601,8 @@ def app():
         output_variables['EBIT'] = model.ebit
         output_variables['EBIT Ratio'] = model.ebit_ratio
         output_variables['General Expense'] = output_variables['Operational Expense'] + output_variables['Other Expense'] + output_variables['Advertising & Promotion Expense']
+        output_variables['Patient Pool'] = transaction_df['Patient ID'].unique().tolist()
+        
         # output_variables['Operating Income'] = output_variables['Net Sales'] + output_variables['Trading Income'] + output_variables['Other Income'] + output_variables['Interest Revenue of Bank'] + output_variables['COGS'] + output_variables['Advertising & Promotion Expense'] + output_variables['Operational Expense'] + output_variables['Other Expense']
 
         # Convert the output_variables dictionary to a DataFrame and save as CSV
@@ -591,12 +619,15 @@ def app():
         st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Current Value Calculation Step'** tab")
 
         ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
+        st.write(ebit_multiple)
         equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)
         fitout_adjusting_value = model.fitout_adjusting_value(output_variables['Fitout Value'], output_variables['Last Fitout Year'], base_fitout_cost, base_last_fitout)
 
         ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Risk of Leaving Dentist'])
         ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
+        st.write(ebit_multiple)
         ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
+        st.write(ebit_multiple)
         clinic_valuation = ebit_multiple * model.ebit
         
         col1, col2 = st.columns(2)
@@ -631,11 +662,71 @@ def app():
         output_variables['Clinic Valuation Adjusted'] = clinic_valuation_adjusted
         output_variables['Clinic Valuation'] = clinic_valuation
         
+        
 
 
         with open('clinic_value.pkl', 'wb') as f:
             pickle.dump(output_variables, f)
             
+        file_name = 'clinic_value_set.pkl'
+        ID = uploaded_file
+
+        # Initialize or load existing dictionary
+        if os.path.exists(file_name):
+            # Load existing data
+            with open(file_name, 'rb') as f:
+                output_variables_set = pickle.load(f)
+        else:
+            # Start with an empty dictionary
+            output_variables_set = {}
+            
+            
+
+
+
+        # Update or add the new data
+        output_variables_set[ID] = output_variables
+
+        # Save the updated dictionary back to the file
+        with open(file_name, 'wb') as f:
+            pickle.dump(output_variables_set, f)
+            
+            
+    st.divider()
+            # Define the file name
+    file_name = 'clinic_value_set.pkl'
+    ID = uploaded_file
+
+    # Initialize or load existing dictionary
+    if os.path.exists(file_name):
+        # Load existing data
+        with open(file_name, 'rb') as f:
+            output_variables_set = pickle.load(f)
+    else:
+        # Start with an empty dictionary
+        output_variables_set = {}
+        
+        
+
+
+
+    # # Update or add the new data
+    # output_variables_set[ID] = output_variables
+
+    # # Save the updated dictionary back to the file
+    # with open(file_name, 'wb') as f:
+    #     pickle.dump(output_variables_set, f)
+        
+        
+    # st.write the keys of the output_variables_set dictionary
+    st.write("Saved Clinic Evaluation")
+    st.write("The following clinic evaluations have been saved:")
+    st.write(list(output_variables_set.keys()))
+                    
+            
+
+
+   
             
                     
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+from collections import defaultdict
 
 
 class ModelCashflow:
@@ -71,7 +72,92 @@ class ModelCashflow:
 
 
 
-    def cashflow_plot(self, number_of_days, granularity='daily'):
+
+    def merge_companies_or_categories(self, companies_dictionary, by='companies'):
+        
+        new_categories_dictionary = defaultdict(list)
+        merged_categories_dictionary = {}
+        
+        if by == 'companies':
+            # Merge by companies (original functionality)
+            new_companies_dictionary = {}
+
+            for clinic_name, dataframes in companies_dictionary.items():
+                # Initialize an empty list to hold all DataFrames for this clinic_name
+                merged_df_list = []
+
+                # Iterate through each dataframe in the inner dictionary
+                for dataframe_key, dataframe in dataframes.items():
+                    # Ensure the 'Period' column is in datetime format
+                    dataframe['Period'] = pd.to_datetime(dataframe['Period'])
+                    # Append the dataframe to the list
+                    merged_df_list.append(dataframe)
+
+                # Combine all dataframes for this clinic_name on 'Period'
+                merged_df = pd.concat(merged_df_list, axis=0).sort_values('Period').reset_index(drop=True)
+                merged_df = merged_df.groupby('Period', as_index=False).agg({
+                    'Revenue': 'sum',
+                    'Expense': 'sum',
+                    'Quarter': 'mean'
+                })
+
+                # Add a 'Profit' column
+                merged_df['Profit'] = merged_df['Revenue'] - merged_df['Expense']
+
+                # Drop rows where both Revenue and Expense are zero
+                merged_df = merged_df[(merged_df['Revenue'] != 0) | (merged_df['Expense'] != 0)]
+
+                # Store merged DataFrame by clinic_name
+                new_companies_dictionary[clinic_name] = merged_df
+
+   
+
+        elif by == 'categories':
+            # Merge by categories (new functionality)
+            new_categories_dictionary = defaultdict(list)
+
+            # Collect all dataframes under their respective category
+            for clinic_name, dataframes in companies_dictionary.items():
+                for dataframe_key, dataframe in dataframes.items():
+                    # Ensure the 'Period' column is in datetime format
+                    dataframe['Period'] = pd.to_datetime(dataframe['Period'])
+                    # Append the dataframe to the category list
+                    new_categories_dictionary[dataframe_key].append(dataframe)
+
+            # Merge all dataframes within each category
+            merged_categories_dictionary = {}
+            for category, dataframes in new_categories_dictionary.items():
+                merged_df = pd.concat(dataframes, axis=0).sort_values('Period').reset_index(drop=True)
+                merged_df = merged_df.groupby('Period', as_index=False).agg({
+                    'Revenue': 'sum',
+                    'Expense': 'sum',
+                    'Quarter': 'mean'
+                })
+
+                # Add a 'Profit' column
+                merged_df['Profit'] = merged_df['Revenue'] - merged_df['Expense']
+
+                # Drop rows where both Revenue and Expense are zero
+                merged_df = merged_df[(merged_df['Revenue'] != 0) | (merged_df['Expense'] != 0)]
+
+                # Store the merged DataFrame by category
+                merged_categories_dictionary[category] = merged_df
+
+        
+        final_dictionaries = new_companies_dictionary if by == 'companies' else merged_categories_dictionary
+        
+
+        self.remove_all_companies()
+        
+        for company_name, df in final_dictionaries.items():
+            self.add_company_data(company_name, df)
+            
+        
+        return final_dictionaries
+
+
+
+    def cashflow_plot(self, number_of_days, granularity='daily', start_date='2024-01-01'):
         """
         Generates an interactive Plotly cashflow plot using Period as the x-axis.
         Allows granularity to be set to 'daily', 'weekly', or 'monthly'.
@@ -80,7 +166,7 @@ class ModelCashflow:
         fig = go.Figure()
 
         # Starting date
-        start_date = pd.Timestamp('2024-01-01')
+        start_date = pd.Timestamp(start_date)
 
         # Generate date_array based on the input number_of_days
         date_array = pd.date_range(start=start_date, periods=number_of_days, freq='D')
@@ -97,12 +183,22 @@ class ModelCashflow:
                 return f"W{date.isocalendar().week - date.replace(day=1).isocalendar().week + 1}-{date.strftime('%b')}-{date.strftime('%y')}"
             elif granularity == 'monthly':
                 return date.strftime('%b-%y')
+            elif granularity == 'quarterly':  # New case for quarterly
+                quarter = (date.month - 1) // 3 + 1
+                return f"{date.year}-Q{quarter}"
             else:  # 'daily'
                 return date
 
         # Loop through each company in the collection and process data
         for company_name, df in self.collection_df.items():
             df['Period'] = pd.to_datetime(df['Period'])
+            
+            # df = df.groupby('Period', as_index=False).agg({
+            #     'Revenue': 'sum',
+            #     'Expense': 'sum',
+            #     'Order': 'mean'
+            # })
+
             
             # Align company DataFrame with the elongated date range
             df = pd.merge(elongated_df, df, on='Period', how='left')
@@ -121,7 +217,13 @@ class ModelCashflow:
                     'Order': 'mean'
                 })
             else:
-                df['GranularPeriod'] = df['Period']  # Keep original date for daily
+                # df['GranularPeriod'] = df['Period']  # Keep original date for daily
+                df = df.groupby('GranularPeriod', as_index=False).agg({
+                'Revenue': 'sum',
+                'Expense': 'sum',
+                'Order': 'mean'
+            })
+
 
             df = df.sort_values(by='Order')
 
@@ -257,3 +359,160 @@ class ModelCashflow:
                 comparison_matrix.loc[f'Scenario {row_key}', f'Scenario {col_key}'] = percentage_diff
         
         return comparison_matrix
+    
+    
+    
+    def cashflow_plot_detailed(self, number_of_intervals, granularity='half-hourly', start_date='2024-01-01 00:00:00'):
+        """
+        Generates an interactive Plotly cashflow plot using detailed granularity: half-hourly or hourly.
+        Allows granularity to be set to 'half-hourly' or 'hourly'.
+        """
+        # Create a Plotly figure
+        fig = go.Figure()
+
+        # Starting date
+        start_date = pd.Timestamp(start_date)
+
+        # Generate date_array based on the input number_of_intervals
+        freq = '30T' if granularity == 'half-hourly' else 'H'  # Frequency: '30T' for half-hourly, 'H' for hourly
+        date_array = pd.date_range(start=start_date, periods=number_of_intervals, freq=freq)
+        date_series = pd.Series(date_array, name="Hourly_Period")
+        elongated_df = pd.DataFrame({'Hourly_Period': date_series})
+
+        # Variable to accumulate the total revenue and expense
+        accumulated_revenue = None
+        accumulated_expense = None
+
+        # Define a function to generate the Period label based on the granularity
+        def get_period_label(date, granularity):
+            if granularity == 'half-hourly':
+                return date.strftime('%Y-%m-%d %H:%M')
+            elif granularity == 'hourly':
+                return date.strftime('%Y-%m-%d %H:00')
+            else:
+                raise ValueError("Unsupported granularity. Choose 'half-hourly' or 'hourly'.")
+
+        # Loop through each company in the collection and process data
+        for company_name, df in self.collection_df.items():
+            df['Hourly_Period'] = pd.to_datetime(df['Hourly_Period'])
+
+            # Align company DataFrame with the elongated date range
+            df = pd.merge(elongated_df, df, on='Hourly_Period', how='left')
+            df['Revenue'].fillna(0, inplace=True)
+            df['Expense'].fillna(0, inplace=True)
+
+            # Create a new Period label based on the granularity
+            df['GranularPeriod'] = df['Hourly_Period'].apply(lambda x: get_period_label(x, granularity))
+            df['Order'] = df['Hourly_Period'].rank(method='dense').astype(int)
+
+            # Aggregate the data based on the new GranularPeriod
+            df = df.groupby('GranularPeriod', as_index=False).agg({
+                'Revenue': 'sum',
+                'Expense': 'sum',
+                'Order': 'mean'
+            })
+            df = df.sort_values(by='Order')
+
+            # Add bars for expenses for each company
+            fig.add_trace(go.Bar(
+                x=df['GranularPeriod'], 
+                y=-df['Expense'],  # Expenses are negative
+                name='Expense',
+                marker_color='#f04343',
+                legendgroup=company_name,
+                showlegend=False,
+                customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
+                hovertemplate=(
+                    f'<b>{company_name}</b><br>' +
+                    'Expense: %{customdata[1]:,.0f}<br>'
+                )
+            ))
+
+            # Add bars for revenue for each company
+            fig.add_trace(go.Bar(
+                x=df['GranularPeriod'], 
+                y=df['Revenue'],
+                name='Revenue',
+                marker_color='#337dd6',
+                legendgroup=company_name,
+                showlegend=False,
+                customdata=np.stack((df['Revenue'], df['Expense']), axis=-1),
+                hovertemplate=(
+                    f'<b>{company_name}</b><br>' +
+                    'Revenue: %{customdata[0]:,.0f}<br>'
+                )
+            ))
+
+            # Add invisible scatter trace for company name in the legend
+            fig.add_trace(go.Scatter(
+                x=[None],
+                y=[None],
+                mode='markers',
+                marker=dict(color='grey'),
+                name=company_name,
+                legendgroup=company_name,
+                showlegend=True
+            ))
+
+            # Accumulate the revenue and expense for cumulative calculation
+            if accumulated_revenue is None:
+                accumulated_revenue = df['Revenue'].copy()
+                accumulated_expense = df['Expense'].copy()
+            else:
+                accumulated_revenue += df['Revenue']
+                accumulated_expense += df['Expense']
+
+        # Calculate net and cumulative cashflow
+        net_cashflow = accumulated_revenue - accumulated_expense
+        cumulative_cashflow = net_cashflow.cumsum()
+
+        # Add a line for cumulative cashflow
+        fig.add_trace(go.Scatter(
+            x=df['GranularPeriod'],
+            y=cumulative_cashflow,
+            mode='lines+markers',
+            name='Cumulative Cashflow',
+            marker_color='black',
+            line=dict(dash='solid'),
+            hovertemplate=(
+                '<b>Cumulative Cashflow</b><br>' +
+                'Period: %{x}<br>' +
+                'Cumulative Cashflow: %{y:,.0f}<extra></extra>'
+            )
+        ))
+
+        # Calculate the mean values for the reference lines
+        mean_revenue = accumulated_revenue.mean()
+        mean_expense = accumulated_expense.mean()
+        max_revenue = mean_revenue * 1.3  # 30% deviation threshold
+        max_expense = -mean_expense * 1.3  # 30% deviation threshold (negative)
+
+        # Add horizontal reference lines for max allowable revenue and expense
+        fig.add_hline(
+            y=max_revenue,
+            line=dict(color='blue', dash='dash'),
+            name='Max Allowable Revenue (30% Tolerance)',
+            annotation_text='Max Revenue (30% Tolerance)',
+            annotation_position="top right"
+        )
+        fig.add_hline(
+            y=max_expense,
+            line=dict(color='red', dash='dash'),
+            name='Max Allowable Expense (30% Tolerance)',
+            annotation_text='Max Expense (30% Tolerance)',
+            annotation_position="bottom right"
+        )
+
+        # Customize layout
+        fig.update_layout(
+            title=f'Cashflow ({granularity.capitalize()})',
+            yaxis_title='Amount',
+            xaxis_title='Period',
+            hovermode='x',
+            bargap=0.2,
+            plot_bgcolor='white',
+            barmode='relative'
+        )
+
+        # Return the interactive chart
+        return fig

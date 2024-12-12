@@ -5,12 +5,15 @@ import numpy_financial as npf
 import plotly.graph_objects as go
 import random
 import calendar
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+
 
 
 
 class ModelForecastPerformance:
-    def __init__(self, company_variables):
+    def __init__(self, company_variables = None):
+        
+        company_variables = company_variables or {}
         
         self.ebit = company_variables.get('EBIT', 0)
         self.net_sales_growth = company_variables.get('Net Sales Growth', 0)
@@ -20,11 +23,12 @@ class ModelForecastPerformance:
 
 
 
-    def forecast_indicect_cost(self, number_of_forecasted_periods):
+    def forecast_indirect_cost(self, number_of_forecasted_periods, start_year=2024, start_month=1):
         indirect_cost = self.general_expense / 12
-        periods = np.arange(1, number_of_forecasted_periods + 1)
+        periods = np.arange(start_month, number_of_forecasted_periods + start_month)
+        start_year = start_year
         
-        periods = [self.generate_date_from_month(int(period), method='last_day') for period in periods]
+        periods = [self.generate_date_from_month(int(period), method='last_day', start_year=start_year) for period in periods]
         
         # Create a DataFrame for the result
         forecast_df = pd.DataFrame({
@@ -42,7 +46,7 @@ class ModelForecastPerformance:
         
 
 
-    def forecast_revenue_expenses(self, number_of_forecasted_periods):
+    def forecast_revenue_expenses(self, number_of_forecasted_periods, start_month=1):
         """
         Generates a DataFrame of forecasted Revenue (Net Sales) and Expenses (COGS) values.
         
@@ -67,7 +71,7 @@ class ModelForecastPerformance:
 
         while growth < minimum_growth:
             # Create an array for the period
-            periods = np.arange(1, number_of_forecasted_periods + 1)
+            periods = np.arange(start_month, number_of_forecasted_periods + start_month)
             
             # Calculate the deterministic growth component (trend)
             trend = initial_EBIT * (1 + ebit_growth_monthly) ** periods
@@ -117,7 +121,7 @@ class ModelForecastPerformance:
 
 
     
-    def forecast_revenue_expenses_MA(self, historical_data_df, number_of_forecasted_periods, MA_period):
+    def forecast_revenue_expenses_MA(self, historical_data_df, number_of_forecasted_periods, MA_period, start_month=1):
         """
         Generates a forecast of Revenue and Expenses using a Simple Moving Average (SMA) approach.
         
@@ -154,7 +158,7 @@ class ModelForecastPerformance:
             expenses_forecast.append(expenses_ma)
         
         # Create a forecast DataFrame, excluding the initial historical data
-        forecast_periods = np.arange(1, number_of_forecasted_periods + 1)
+        forecast_periods = np.arange(start_month, number_of_forecasted_periods + start_month)
         forecast_df = pd.DataFrame({
             'Period': forecast_periods,
             'Revenue': np.round(revenue_forecast[-number_of_forecasted_periods:], 0),
@@ -262,7 +266,7 @@ class ModelForecastPerformance:
     # fig = compare_and_plot_data(df1, df2)
     # fig.show()
     
-    def loan_amortization_schedule(self, principal, annual_interest_rate, loan_term_years):
+    def loan_amortization_schedule(self, principal, annual_interest_rate, loan_term_years, start_year=2024):
         """
         Generates an amortization schedule for a loan and calculates key figures.
         
@@ -317,7 +321,7 @@ class ModelForecastPerformance:
             total_interest_paid += interest_payment
         
         
-        month_list = [self.generate_date_from_month(int(period), method='first_day') for period in month_list]
+        month_list = [self.generate_date_from_month(int(period), method='first_day', start_year=start_year) for period in month_list]
         
         # Create DataFrame for amortization schedule
         amortization_df = pd.DataFrame({
@@ -433,10 +437,10 @@ class ModelForecastPerformance:
         
         return forecast_treatment_df
     
-    def total_days_from_start(self, number_of_months):
+    def total_days_from_start(self, number_of_months, start_year=2024, start_month=1):
         # Predefined start year and month
-        start_year = 2024
-        start_month = 1
+        start_year = start_year
+        start_month = start_month
 
         total_days = 0
         current_year = start_year
@@ -457,7 +461,7 @@ class ModelForecastPerformance:
         return total_days
 
 
-    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000):
+    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None):
         """
         Generates a DataFrame of randomly selected treatments for each period in cashflow_df,
         until the accumulated profit (Revenue - Expense) matches the cashflow profit within the specified tolerance.
@@ -540,8 +544,108 @@ class ModelForecastPerformance:
                 customer_id = np.random.choice(customer_ids)
                 
                 forecast_data.append({
-                    'Period': self.generate_date_from_month(int(period)),
+                    'Period': self.generate_date_from_month(int(period), start_year=start_year),
                     'Treatment': selected_treatment['Treatment'],
+                    'Revenue': treatment_revenue,
+                    'Expense': treatment_expense,
+                    'Customer ID': customer_id
+                })
+                
+                # Check if the accumulated profit is within the tolerance bounds
+                accumulated_profit = accumulated_revenue - accumulated_expense
+                if profit_lower_bound <= accumulated_profit <= profit_upper_bound:
+                    break  # Terminate once the profit is within the tolerance range
+        
+        # Create a DataFrame from the forecast data
+        forecast_treatment_df = pd.DataFrame(forecast_data)
+        
+        # sort by 'Period' column of date 
+        forecast_treatment_df['Period'] = pd.to_datetime(forecast_treatment_df['Period'], format='%d-%m-%Y')
+        forecast_treatment_df['Period'] = forecast_treatment_df['Period'].dt.date
+        forecast_treatment_df = forecast_treatment_df.sort_values(by='Period').reset_index(drop=True)
+        
+        
+        return forecast_treatment_df
+
+    def generate_forecast_item_code_by_profit(self, item_code_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None, OHT_salary=35, specialist_salary=125):
+
+        # Note no dentist, only OHT and Specialist
+        
+        item_code_df['COGS Salary AUD'] = item_code_df.apply(lambda row: OHT_salary * row['duration'] / 60 if row['medical_officer_new'] == 'OHT' else specialist_salary * row['duration'] / 60, axis=1)
+        
+        # Define which columns to use for revenue and expense based on the basis
+        if basis == "Australia":
+            revenue_col = 'price AUD'
+            expense_col = 'cost_material AUD'
+            salary_expense_col = 'COGS Salary AUD'
+        elif basis == "Indonesia":
+            revenue_col = 'price IDR'
+            expense_col = 'cost_material IDR'
+            salary_expense_col = 'COGS Salary AUD'
+        else:
+            raise ValueError("Basis must be 'Australia' or 'Indonesia'")
+        
+        
+        
+        # Add a Profit column to cashflow_df
+        cashflow_df['Profit'] = cashflow_df['Revenue'] - cashflow_df['Expense']
+        
+        # Generate a list of unique Customer IDs
+        customer_ids = [f'Customer {i}' for i in range(1, number_of_unique_patient + 1)] if patient_pool is None else patient_pool
+        
+        # Initialize list to store forecast data
+        forecast_data = []
+
+        # Loop through each period in cashflow_df
+        for i, row in cashflow_df.iterrows():
+            period = row['Period']
+            target_profit = row['Profit']
+            
+            # Calculate the tolerance range for profit
+            profit_lower_bound = target_profit * (1 - tolerance)
+            profit_upper_bound = target_profit * (1 + tolerance)
+            
+            # Initialize accumulators for revenue and expense
+            accumulated_revenue = 0
+            accumulated_expense = 0
+            
+            # Keep track of treatments that caused breaches to avoid resampling them
+            discarded_treatments = set()
+            
+            # Select random treatments until profit is within the tolerance
+            while True:
+                # Randomly select a treatment, making sure it hasn't been discarded
+                available_treatments = item_code_df[~item_code_df['item_number'].isin(discarded_treatments)]
+                
+                # If no valid treatments remain, break the loop
+                if available_treatments.empty:
+                    break
+                
+                selected_treatment = available_treatments.sample(n=1).iloc[0]
+                
+                treatment_revenue = selected_treatment[revenue_col]
+                treatment_expense = selected_treatment[expense_col] + selected_treatment[salary_expense_col]
+                
+                # Check if adding this treatment would exceed the profit upper limit
+                new_accumulated_revenue = accumulated_revenue + treatment_revenue
+                new_accumulated_expense = accumulated_expense + treatment_expense
+                new_accumulated_profit = new_accumulated_revenue - new_accumulated_expense
+                
+                # If the accumulated profit exceeds the upper limit, discard the treatment and resample
+                if new_accumulated_profit > profit_upper_bound:
+                    discarded_treatments.add(selected_treatment['item_number'])
+                    continue  # Resample, this treatment breaches profit upper bound
+                
+                # If it passes the check, add the treatment to the forecast
+                accumulated_revenue = new_accumulated_revenue
+                accumulated_expense = new_accumulated_expense
+                
+                # Randomly select a Customer ID for this row
+                customer_id = np.random.choice(customer_ids)
+                
+                forecast_data.append({
+                    'Period': self.generate_date_from_month(int(period), start_year=start_year),
+                    'Treatment': selected_treatment['item_number'],
                     'Revenue': treatment_revenue,
                     'Expense': treatment_expense,
                     'Customer ID': customer_id
@@ -565,9 +669,10 @@ class ModelForecastPerformance:
 
 
 
-    def generate_date_from_month(self, month, method='random'):
+
+    def generate_date_from_month(self, month, method='random', start_year=2024):
         # Starting year
-        start_year = 2024
+        start_year = start_year
 
         # Calculate the year and month from the given month index
         year = start_year + (month - 1) // 12
@@ -596,7 +701,7 @@ class ModelForecastPerformance:
 
 
 
-    def forecast_revenue_expenses_MA_by_profit(self, historical_data_df, number_of_forecasted_periods, MA_period, treatment_df, basis="Australia", tolerance=0.1):
+    def forecast_revenue_expenses_MA_by_profit(self, historical_data_df, number_of_forecasted_periods, MA_period, treatment_df, basis="Australia", tolerance=0.1, start_month=1):
         """
         Generates a forecast of Revenue and Expenses using a Simple Moving Average (SMA) approach,
         and adjusts based on randomly selected treatments within the specified tolerance.
@@ -675,7 +780,7 @@ class ModelForecastPerformance:
             expenses_forecast.append(accumulated_expense)
         
         # Create a forecast DataFrame, excluding the initial historical data
-        forecast_periods = np.arange(1, number_of_forecasted_periods + 1)
+        forecast_periods = np.arange(start_month, number_of_forecasted_periods + start_month)
         forecast_df = pd.DataFrame({
             'Period': forecast_periods,
             'Revenue': np.round(revenue_forecast[-number_of_forecasted_periods:], 0),
@@ -850,7 +955,7 @@ class ModelForecastPerformance:
         return fig
     
     
-    def equipment_to_cashflow(self, df, period):
+    def equipment_to_cashflow(self, df, period, start_year=2024):
         # Create a list to hold data for the output DataFrame
         cashflow_data = []
         
@@ -879,7 +984,7 @@ class ModelForecastPerformance:
                 
         
         result = pd.DataFrame(cashflow_data)
-        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day'))
+        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day', start_year=start_year))
 
         result['Revenue'] = 0  # Add a Revenue column with 0 values
         
@@ -892,7 +997,7 @@ class ModelForecastPerformance:
         return result
 
 
-    def fitout_to_cashflow(self, fitout_value, last_fitout, period):
+    def fitout_to_cashflow(self, fitout_value, last_fitout, period, start_year=2024):
         
         period_to_fitout = 10 # in years
         
@@ -919,7 +1024,7 @@ class ModelForecastPerformance:
                 })
                 
         result = pd.DataFrame(cashflow_data)
-        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day'))
+        result['Period'] = result['Period'].apply(lambda period: self.generate_date_from_month(int(period), method='first_day', start_year=start_year))
 
         result['Revenue'] = 0  # Add a Revenue column with 0 values
         
@@ -929,3 +1034,267 @@ class ModelForecastPerformance:
         
         
         return result
+    
+    
+    def forecast_revenue_expenses_given_item_code(self, clinic_item_code, cleaned_item_code, forecast_period, target_cov, tolerance=0.1):
+        # Ensure consistent formatting by zero-padding 'Code' to match 'item_number'
+        clinic_item_code['Code'] = clinic_item_code['Code'].apply(lambda x: str(x).zfill(3))
+        cleaned_item_code['item_number'] = cleaned_item_code['item_number'].astype(str).str.zfill(3)
+        cleaned_item_code['salary_per_code'] = cleaned_item_code['Total Salary'] / cleaned_item_code['Total Demand']
+        
+        # Merge clinic_item_code with cleaned_item_code based on Code and item_number
+        merged_df = pd.merge(
+            clinic_item_code,
+            cleaned_item_code,
+            left_on="Code",
+            right_on="item_number",
+            how="inner"
+        )
+        
+        # Extract necessary columns
+        merged_df = merged_df[['Code', 'Total Demand', 'price AUD', 'cost_material AUD', 'salary_per_code']]
+        
+        # Scale Total Demand to match the forecast_period
+        merged_df['Demand per Period'] = (merged_df['Total Demand'] / 12) * forecast_period
+
+        # Initialize cashflow DataFrame
+        periods = list(range(1, forecast_period + 1))
+        cashflow_df = pd.DataFrame({'Period': periods})
+        cashflow_df['Revenue'] = 0.0
+        cashflow_df['Expense'] = 0.0
+        
+        # Generate random allocations and control CoV
+        def calculate_cov(values):
+            """Calculate coefficient of variation."""
+            mean = np.mean(values)
+            std_dev = np.std(values)
+            return std_dev / mean if mean != 0 else 0
+        
+        valid_distribution = False
+        
+        while not valid_distribution:
+            # Reset Revenue and Expense
+            cashflow_df['Revenue'] = 0.0
+            cashflow_df['Expense'] = 0.0
+            
+            for _, row in merged_df.iterrows():
+                # Randomly allocate demand across forecast_period
+                random_allocation = np.random.dirichlet(np.ones(forecast_period)) * row['Demand per Period']
+                
+                # Calculate revenue and expense for the allocated demand
+                revenue = random_allocation * row['price AUD']
+                expense_lab_material = random_allocation * row['cost_material AUD']
+                expense_salary = random_allocation * row['salary_per_code']
+                
+                expense = expense_lab_material + expense_salary
+                
+                # Add to cashflow DataFrame
+                cashflow_df['Revenue'] += revenue
+                cashflow_df['Expense'] += expense
+            
+            # Calculate Revenue - Expense
+            cashflow_df['Profit'] = cashflow_df['Revenue'] - cashflow_df['Expense']
+            
+            # Calculate CoV of Profit
+            cov = calculate_cov(cashflow_df['Profit'])
+            
+            # Check if CoV is within the target range
+            if target_cov * (1 - tolerance) <= cov <= target_cov * (1 + tolerance):
+                valid_distribution = True
+        
+        # Drop the Profit column before returning the DataFrame
+        cashflow_df = cashflow_df[['Period', 'Revenue', 'Expense']]
+        
+        #round cashflow_df
+        cashflow_df['Revenue'] = np.round(cashflow_df['Revenue'], 0)
+        cashflow_df['Expense'] = np.round(cashflow_df['Expense'], 0)
+
+        
+        return cashflow_df
+    
+    
+    def generate_monthly_cashflow_given_item_code(self, clinic_item_code, cleaned_item_code, forecast_period, target_cov, start_year=2024, start_month=1):
+        """
+        Optimized generation of a monthly cashflow DataFrame with controlled CoV for revenue.
+        """
+        import pandas as pd
+        import numpy as np
+        import random
+        import calendar
+        from datetime import date
+        
+        start_year += 1 # somehow need to be added by 1
+
+        clinic_item_code['Code'] = clinic_item_code['Code'].apply(lambda x: str(x).zfill(3))
+        cleaned_item_code['item_number'] = cleaned_item_code['item_number'].astype(str).str.zfill(3)
+
+        clinic_item_code['price AUD'] = clinic_item_code['Code'].map(cleaned_item_code.set_index('item_number')['price AUD'])
+        clinic_item_code['cost_material AUD'] = clinic_item_code['Code'].map(cleaned_item_code.set_index('item_number')['cost_material AUD'])
+        
+        clinic_item_code['salary_per_code'] = clinic_item_code['Total Salary'] / clinic_item_code['Total Demand']
+        
+        clinic_item_code['Total Demand'] = clinic_item_code['Total Demand'] / 12 * forecast_period
+        clinic_item_code['Total Revenue'] = clinic_item_code['Total Revenue'] / 12 * forecast_period
+        clinic_item_code['Total Material Cost'] = clinic_item_code['Total Material Cost'] / 12 * forecast_period
+        clinic_item_code['Total Duration'] = clinic_item_code['Total Duration'] / 12 * forecast_period
+        clinic_item_code['Total Salary'] = clinic_item_code['Total Salary'] / 12 * forecast_period
+
+
+        # Calculate total revenue and expense
+        total_revenue = (clinic_item_code['Total Demand'] * clinic_item_code['price AUD']).sum() 
+        total_expense = (clinic_item_code['Total Demand'] * clinic_item_code['cost_material AUD']).sum() 
+
+        # Initialize monthly cashflow
+        monthly_cashflow = pd.DataFrame({
+            'Period': list(range(1, forecast_period + 1)),
+            'Revenue': np.zeros(forecast_period),
+            'Expense': np.zeros(forecast_period),
+            'Profit': np.zeros(forecast_period)
+        })
+
+        # Generate Revenue and Expense with controlled CoV for Revenue
+        mean_revenue = total_revenue / (forecast_period/12) / 12 # as the total_revenue is for a year
+        mean_expense = total_expense / (forecast_period/12) / 12 # as the total_expense is for a year
+
+        std_revenue = target_cov * mean_revenue
+
+        # Generate revenue distribution with target CoV
+        revenue_dist = np.random.normal(loc=mean_revenue, scale=std_revenue, size=forecast_period)
+        revenue_dist = np.clip(revenue_dist, 0, None)  # Ensure no negative revenues
+
+        # Scale Revenue to match total
+        revenue_dist *= total_revenue / revenue_dist.sum()
+
+        # Adjust Expense and Profit
+        expense_dist = (revenue_dist / total_revenue) * total_expense
+        profit_dist = revenue_dist - expense_dist
+
+        # Populate monthly cashflow
+        monthly_cashflow['Revenue'] = revenue_dist
+        monthly_cashflow['Expense'] = expense_dist
+        monthly_cashflow['Profit'] = profit_dist
+
+        # Populate Codes by Period based on Revenue
+        def populate_item_codes_by_period(clinic_item_code, monthly_cashflow):
+            """
+            Populate item codes into periods based on target revenues in the monthly cashflow.
+            """
+            # Initialize a DataFrame for the final output
+            populated_data = []
+
+            # Create a working copy of clinic_item_code with a Remaining Demand column
+            clinic_item_code = clinic_item_code.copy()
+            clinic_item_code['Remaining Demand'] = clinic_item_code['Total Demand']
+
+            for _, period_row in monthly_cashflow.iterrows():
+                period = period_row['Period']
+                target_revenue = period_row['Revenue']
+                accumulated_revenue = 0
+
+                while accumulated_revenue < target_revenue and clinic_item_code['Remaining Demand'].sum() > 0:
+                    # Randomly select an item code
+                    available_items = clinic_item_code[clinic_item_code['Remaining Demand'] > 0]
+                    sampled_row = available_items.sample(n=1).iloc[0]
+
+                    # Calculate the sampled revenue
+                    sampled_revenue = sampled_row['price AUD']
+                    sampled_expense_lab_material = sampled_row['cost_material AUD']
+                    sampled_expense_salary = sampled_row['salary_per_code']
+                    sampled_expense = sampled_expense_lab_material + sampled_expense_salary
+                    sampled_profit = sampled_revenue - sampled_expense
+
+                    # Deduct one unit of demand from the sampled item code
+                    clinic_item_code.loc[sampled_row.name, 'Remaining Demand'] -= 1
+
+                    # Append to the populated data
+                    populated_data.append({
+                        'Period': period,
+                        'Code': sampled_row['Code'],
+                        'Revenue': sampled_revenue,
+                        'Expense': sampled_expense,
+                        'Profit': sampled_profit
+                    })
+
+                    accumulated_revenue += sampled_revenue
+
+            # Handle remaining item codes in the last period
+            last_period = monthly_cashflow['Period'].max()
+            remaining_items = clinic_item_code[clinic_item_code['Remaining Demand'] > 0]
+
+            for _, remaining_row in remaining_items.iterrows():
+                while remaining_row['Remaining Demand'] > 0:
+                    remaining_row['Remaining Demand'] -= 1
+                    populated_data.append({
+                        'Period': last_period,
+                        'Code': remaining_row['Code'],
+                        'Revenue': remaining_row['price AUD'],
+                        'Expense': remaining_row['cost_material AUD'],
+                        'Profit': remaining_row['price AUD'] - remaining_row['cost_material AUD']
+                    })
+
+            # Convert to DataFrame
+            populated_df = pd.DataFrame(populated_data)
+
+            return populated_df
+
+        populated_item_codes_df = populate_item_codes_by_period(clinic_item_code, monthly_cashflow)
+
+        # Convert Period to actual dates starting from January 2024
+        def convert_period_to_date_with_calendar_logic(monthly_cashflow_df, start_year, start_month):
+            """
+            Convert numerical periods into specific dates based on a calendar starting from start_month of start_year.
+            """
+            def random_date_from_period(period):
+                # Calculate the year and month based on the starting month and year
+                total_months = (start_year - 1) * 12 + start_month - 1 + (period - 1)
+                year = total_months // 12
+                month = total_months % 12 + 1
+                days_in_month = calendar.monthrange(year, month)[1]
+                random_day = random.randint(1, days_in_month)
+                return date(year, month, random_day)
+
+            monthly_cashflow_df['Period'] = monthly_cashflow_df['Period'].astype(int)
+            monthly_cashflow_df['Date'] = monthly_cashflow_df['Period'].apply(random_date_from_period)
+            monthly_cashflow_df['Period'] = monthly_cashflow_df['Date']
+
+            monthly_cashflow_df.drop(columns=['Date'], inplace=True)
+
+            return monthly_cashflow_df
+
+        # Final conversion to date
+        converted_cashflow_df = convert_period_to_date_with_calendar_logic(populated_item_codes_df, start_year, start_month)
+
+        # Sorting and formatting
+        converted_cashflow_df['Period'] = pd.to_datetime(converted_cashflow_df['Period'], format='%d-%m-%Y')
+        converted_cashflow_df['Period'] = converted_cashflow_df['Period'].dt.date
+        converted_cashflow_df = converted_cashflow_df.sort_values(by='Period').reset_index(drop=True)
+
+        return converted_cashflow_df
+    
+    
+    def add_hourly_period(self, converted_cashflow_df):
+        """
+        Add a new column 'Hourly_Period' to the cashflow DataFrame by assigning random times
+        to each date in the 'Period' column. The times are in half-hour increments and range
+        from 8:00 AM to 12:00 PM and 1:00 PM to 4:00 PM.
+
+        Parameters:
+        - converted_cashflow_df: DataFrame with a 'Period' column containing date values.
+
+        Returns:
+        - DataFrame with an added 'Hourly_Period' column.
+        """
+        # Define valid time slots
+        morning_slots = [timedelta(hours=8 + i // 2, minutes=(i % 2) * 30) for i in range(8)]
+        afternoon_slots = [timedelta(hours=13 + i // 2, minutes=(i % 2) * 30) for i in range(8)]
+        valid_time_slots = morning_slots + afternoon_slots
+
+        # Function to generate a random hourly period
+        def generate_random_hourly_period(period_date):
+            random_slot = random.choice(valid_time_slots)
+            return datetime.combine(period_date, datetime.min.time()) + random_slot
+
+        # Apply the function to generate 'Hourly_Period'
+        converted_cashflow_df['Hourly_Period'] = converted_cashflow_df['Period'].apply(generate_random_hourly_period)
+
+        return converted_cashflow_df
