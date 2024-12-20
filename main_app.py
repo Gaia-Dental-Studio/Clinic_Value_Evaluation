@@ -107,8 +107,13 @@ def app():
     
     # case example is dataset 1
     
+    dataset = st.selectbox("Choose Dataset", ["Dataset 1", "Dataset 2", "Dataset 3"], index=0)
+    
+    # update the dataset value to only take the number
+    dataset = int(dataset.split()[-1])
+    
     # read pkl file
-    with open(r'dummy_clinic_model/pkl_files/dataset_1/pool_clinic_df.pkl', 'rb') as f:
+    with open(f'dummy_clinic_model/pkl_files/dataset_{dataset}/pool_clinic_df.pkl', 'rb') as f:
         pool_clinic_df = pickle.load(f)
     
     uploaded_file = st.selectbox("Choose Clinic", list(pool_clinic_df.keys()), index=0)
@@ -619,15 +624,15 @@ def app():
         st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Current Value Calculation Step'** tab")
 
         ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
-        st.write(ebit_multiple)
+        # st.write(ebit_multiple)
         equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)
         fitout_adjusting_value = model.fitout_adjusting_value(output_variables['Fitout Value'], output_variables['Last Fitout Year'], base_fitout_cost, base_last_fitout)
 
         ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Risk of Leaving Dentist'])
         ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
-        st.write(ebit_multiple)
+        # st.write(ebit_multiple)
         ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
-        st.write(ebit_multiple)
+        # st.write(ebit_multiple)
         clinic_valuation = ebit_multiple * model.ebit
         
         col1, col2 = st.columns(2)

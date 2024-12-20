@@ -36,8 +36,12 @@ def app():
 
 
     st.title('Multiple Asset Evaluation')
+    
+    dataset = st.selectbox('Select dataset', ['Dataset 1', 'Dataset 2', 'Dataset 3'])
+    
+    dataset = int(dataset.split()[-1])
 
-    clinic_projected_cashflow_set = pickle.load(open('clinic_projected_cashflow_set.pkl', 'rb'))
+    clinic_projected_cashflow_set = pickle.load(open(f'dummy_clinic_model/pkl_files/dataset_{dataset}/clinic_projected_cashflow_set.pkl', 'rb'))
 
 
 

@@ -516,3 +516,64 @@ class ModelCashflow:
 
         # Return the interactive chart
         return fig
+
+
+
+    def merge_dataframes_with_category(self):
+        """
+        Merges multiple DataFrames from a dictionary into a single DataFrame 
+        with an additional column indicating the category.
+
+        Parameters:
+            collection_dfs (dict): A dictionary where keys are category names 
+                                and values are DataFrames with identical columns 
+                                'Period', 'Revenue', and 'Expense'.
+
+        Returns:
+            pd.DataFrame: A single DataFrame with an additional 'Category' column.
+        """
+        # List to store dataframes with the Category column added
+        
+        collection_dfs = self.collection_df
+        
+        merged_dfs = []
+        
+        for category, df in collection_dfs.items():
+            # Add the 'Category' column to the current dataframe
+            df_with_category = df.copy()
+            df_with_category['Category'] = category
+            # Append the modified dataframe to the list
+            merged_dfs.append(df_with_category)
+        
+        # Concatenate all dataframes in the list
+        merged_df = pd.concat(merged_dfs, ignore_index=True)
+        
+        return merged_df
+    
+    
+    def groupby_dataframes_month_year(self, df):
+        df['Period'] = pd.to_datetime(df['Period'])
+
+        # Calculate Profit
+        df['Profit'] = df['Revenue'] - df['Expense']
+
+        # Group by Period and sum only numeric columns
+        df = (
+            df
+            .groupby('Period')
+            .sum(numeric_only=True)
+            .reset_index()
+        )
+
+        # Add Month-Year column
+        df['Month_Year'] = df['Period'].dt.strftime('%Y-%m')
+
+        # Group by Month-Year and sum only numeric columns
+        df = (
+            df
+            .groupby('Month_Year')
+            .sum(numeric_only=True)
+            .reset_index()
+        )
+        
+        return df

@@ -175,6 +175,8 @@ if dataset_selected:
     else:
         st.error(f"The directory {dataset_dir} does not exist!")
 
+# comment till here
+
 
 # update dummy_clinic_df with clinic_metrics for each clinic
 dummy_clinic_df['clinic_cogs_salary'] = dummy_clinic_df['clinic_name'].map({k: v['total_salary'] for k, v in clinic_metrics.items()})
@@ -316,9 +318,9 @@ def save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clin
 
     st.success(f"Files saved in {dataset_folder}")
 
-# # Example Streamlit Button Usage
-# if st.button("Save Dataset"):
-#     save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clinic)
+# Example Streamlit Button Usage
+if st.button("Save Dataset"):
+    save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clinic)
 
 
 # st.divider()

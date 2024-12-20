@@ -3,19 +3,31 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from model import ModelClinicValue
-import corporate_wellness_app
-import school_outreach_app
+
+
 from model_forecasting import ModelForecastPerformance
 from cashflow_plot import ModelCashflow
 from streamlit_extras.stateful_button import button
+
 import structured_saving as structured_saving_app
+import corporate_wellness_app
+import school_outreach_app
+from Model_Initiatives.Financial_Market_Allocation import financial_market_allocation_app
+from Model_Initiatives.Supplier_Selection import streamlit_per_clinic as supplier_selection_app
+from Model_Initiatives.Subscription_Scheme import streamlit as subscription_scheme_app
+
 import os
     
 def app():
 
     st.title("Potential Value Calculator")
     
-    clinic_data_set = pickle.load(open('clinic_value_set.pkl', 'rb'))
+    dataset = st.selectbox("Select Dataset", ['Dataset 1', 'Dataset 2', 'Dataset 3'])
+    
+    dataset = int(dataset.split()[-1])
+    
+    
+    clinic_data_set = pickle.load(open(f'dummy_clinic_model/pkl_files/dataset_{dataset}/clinic_value_set.pkl', 'rb'))
     
     
     selected_clinic = st.selectbox("Select Clinic", list(clinic_data_set.keys()))
@@ -96,6 +108,7 @@ def app():
         model_cashflow = ModelCashflow()
         
         forecast_df = model.forecast_revenue_expenses(period_forecast, start_month=1)
+        # forecast_df.to_csv("forecast_df_deletable.csv", index=False)
         # st.dataframe(forecast_df)
         
         indirect_expense = model.forecast_indirect_cost(period_forecast, start_year=start_year)
@@ -110,6 +123,7 @@ def app():
         
         # forecast_df_with_treatments = model.generate_forecast_treatment_df_by_profit(treatment_details, forecast_df)
         forecast_df_with_treatments = model.generate_forecast_item_code_by_profit(item_code_df, forecast_df, patient_pool=clinic_data['Patient Pool'], start_year=start_year)
+        forecast_df_with_treatments.to_csv("forecast_df_treatment_deletable.csv", index=False)
         
         # st.dataframe(forecast_df_with_treatments)
         
@@ -138,6 +152,14 @@ def app():
         model_cashflow.add_company_data("Indirect Expense", indirect_expense)
         model_cashflow.add_company_data("Equipment Procurement", equipment_df)
         model_cashflow.add_company_data("Fit Out", fitout_df)
+        
+        without_improvement_df = model_cashflow.merge_dataframes_with_category()
+        
+        without_improvement_df_profit = model_cashflow.groupby_dataframes_month_year(without_improvement_df)['Profit'].values
+        
+        # save into json
+        with open("Model_Initiatives\Financial_Market_Allocation\without_improvement_profit.json", 'w') as f:
+            f.write(str(without_improvement_df_profit.tolist()))
         
         def generate_datetime(start_year=2024, start_month=1):
             return f"{start_year}-{start_month}-01"
@@ -316,6 +338,9 @@ def app():
         corporate_wellness = st.checkbox("Corporate Wellness Program", value=False)
         structured_saving = st.checkbox("Structured Saving Plan", value=False)
         fair_credit = st.checkbox("Fair Credit Program", value=False)
+        financial_market_allocation = st.checkbox("Financial Market Allocation", value=False)
+        optimized_supplier_selection = st.checkbox("Optimized Supplier Selection", value=False)
+        subscription_scheme = st.checkbox("Subscription Scheme", value=False)
         
     with col2:
         with st.popover("details"):
@@ -323,6 +348,17 @@ def app():
             
         with st.popover("details"):
             structured_saving_app.app()
+            
+        with st.popover("details financial market allocation"):
+            financial_market_allocation_app.app()
+            
+        with st.popover("details optimized supplier selection"):
+            supplier_selection_app.app(dataset, selected_clinic)
+            
+        with st.popover("details subscription scheme"):
+            subscription_scheme_app.app(forecast_df_with_treatments) # For now only compatible in converting using approach 1
+            
+            
             
     # col1, col2 = st.columns(2)
     
@@ -337,10 +373,14 @@ def app():
 
 
     if button("Calculate New Cash Flow", key="calculate-strategy"):
+
         
         corporate_wellness_df = None
         structured_saving_df = None
         fair_credit_df = None
+        financial_market_allocation_df = None
+        # optimized_supplier_selection_df = None
+        subscription_scheme_df = None
         
         if corporate_wellness == True:
             corporate_wellness_df = pd.read_csv("corporate_cashflow_AUD.csv")[:period_forecast]
@@ -359,14 +399,113 @@ def app():
             fair_credit_df['Period'] = fair_credit_df['Period'].apply(lambda period: model.generate_date_from_month(int(period), method='first_day', start_year=start_year))
             clinic_projected_cashflow_set[selected_clinic]["Approach 1"]["Fair Credit"] = fair_credit_df
             clinic_projected_cashflow_set[selected_clinic]["Approach 2"]["Fair Credit"] = fair_credit_df
+            
+        if financial_market_allocation == True:
+            financial_market_allocation_df = pd.read_csv("Model_Initiatives/Financial_Market_Allocation/cashflow.csv")[:period_forecast]
+            clinic_projected_cashflow_set[selected_clinic]["Approach 1"]["Financial Market Allocation"] = financial_market_allocation_df
+            clinic_projected_cashflow_set[selected_clinic]["Approach 2"]["Financial Market Allocation"] = financial_market_allocation_df
+            
+        if optimized_supplier_selection == True:
+            reduced_material_cost = pd.read_pickle("Model_Initiatives/Supplier_Selection/reduced_material_cost.pkl")
+            forecast_df['Expense'] = forecast_df['Expense'] - (reduced_material_cost / len(forecast_df))
+            
+        if subscription_scheme == True:
+            subscription_scheme_df = pd.read_csv("Model_Initiatives/Subscription_Scheme/after_subscription_scheme.csv")
+            forecast_df = subscription_scheme_df.copy()
+            MA_forecast_df = subscription_scheme_df.copy() # still not correct for the second approach
+            
+
+        # use Approach 1    
+        model_cashflow.remove_all_companies()    
+        model_cashflow.add_company_data("Gross Profit", forecast_df)
+        model_cashflow.add_company_data("Debt Repayment", sliced_amortization_df) if acquiring_funding == "Borrow" else None
+        model_cashflow.add_company_data("Indirect Expense", indirect_expense)
+        model_cashflow.add_company_data("Equipment Procurement", equipment_df)
+        model_cashflow.add_company_data("Fit Out", fitout_df)
 
         model_cashflow.add_company_data("Corporate Wellness", corporate_wellness_df) if corporate_wellness_df is not None else None
         model_cashflow.add_company_data("Structured Saving", structured_saving_df) if structured_saving_df is not None else None
         model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None
+        model_cashflow.add_company_data("Financial Market Allocation", financial_market_allocation_df) if financial_market_allocation_df is not None else None
+        # model_cashflow.add_company_data("Subscription Scheme", subscription_scheme_df) if subscription_scheme_df is not None else None
+
+
+        with_improvement_df = model_cashflow.merge_dataframes_with_category()
+       
         st.plotly_chart(model_cashflow.cashflow_plot(number_of_months, granularity='monthly', start_date=generate_datetime(start_year=start_year)))
         
         
-    st.write(clinic_projected_cashflow_set)
+        st.markdown('### Comparison')
+        
+       
+        
+        # st.dataframe(with_improvement_df)
+        # st.dataframe(without_improvement_df)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            
+            without_improvement_df = model_cashflow.groupby_dataframes_month_year(without_improvement_df)
+
+            # Calculate Coefficient of Variation for Profit
+            without_improvement_CoV = (
+                without_improvement_df['Profit'].std() / without_improvement_df['Profit'].mean()
+            )
+            
+            total_growth_without = 0
+            num_periods = len(without_improvement_df) - 1  # Number of periods for growth calculation
+
+            for i in range(1, len(without_improvement_df)):
+                growth = (without_improvement_df['Profit'][i] - without_improvement_df['Profit'][i - 1]) / without_improvement_df['Profit'][i - 1]
+                total_growth_without += growth
+
+            # Average period-on-period growth
+            MoM_average_growth_without = total_growth_without / num_periods
+            
+            
+            st.markdown("#### Without Improvement")
+
+
+            # Display result in Streamlit
+            st.metric("Coefficient of Variation (Net Cashflow)", f"{without_improvement_CoV * 100:.2f}%", delta=0, delta_color="off")
+            st.metric("Average Monthly Growth (Net Cashflow)", f"{MoM_average_growth_without * 100:.2f}%", delta=0, delta_color="off")
+            
+        with col2:
+            # Ensure Period column is datetime
+            with_improvement_df = model_cashflow.groupby_dataframes_month_year(with_improvement_df)
+            
+
+
+            # Calculate Coefficient of Variation for Profit
+            with_improvement_CoV = (
+                with_improvement_df['Profit'].std() / with_improvement_df['Profit'].mean()
+            )
+            
+            total_growth_with = 0
+            num_periods = len(with_improvement_df) - 1  # Number of periods for growth calculation
+
+            for i in range(1, len(with_improvement_df)):
+                growth = (with_improvement_df['Profit'][i] - with_improvement_df['Profit'][i - 1]) / with_improvement_df['Profit'][i - 1]
+                total_growth_with += growth
+
+            # Average period-on-period growth
+            MoM_average_growth_with = total_growth_with / num_periods
+
+            
+            st.markdown('#### With Improvement')
+
+
+            # Display result in Streamlit
+            CoV_diff = with_improvement_CoV - without_improvement_CoV
+            st.metric("Coefficient of Variation (Net Cashflow)", f"{with_improvement_CoV * 100:.2f}%", delta=f"{CoV_diff*100:.2f}%" , delta_color="inverse")
+
+            st.metric("Average Monthly Growth (Net Cashflow)", f"{MoM_average_growth_with * 100:.2f}%", delta=f"{(MoM_average_growth_with - MoM_average_growth_without) * 100:.2f}%", delta_color="normal")
+
+        # st.dataframe(with_improvement_df)
+            
+        
+    # st.write(clinic_projected_cashflow_set)
         
         # model_cashflow.remove_all_companies()
         # model_cashflow.add_company_data("Fair Credit", fair_credit_df) if fair_credit_df is not None else None
