@@ -293,6 +293,8 @@ with col2:
     # st.metric('Buying Price', f"${metrics['total_ebit'] * ebit_multiple(metrics['ebit_ratio']):,.0f}")
 
 
+
+
 def save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clinic):
     # Define the parent directory for pickle files
     parent_dir = "pkl_files"
@@ -321,6 +323,16 @@ def save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clin
 # Example Streamlit Button Usage
 if st.button("Save Dataset"):
     save_pickles_with_folder(dummy_clinic_df, clinic_metrics, item_code_per_clinic)
+
+
+# dummy_df = clinic_metrics[selected_clinic]['updated_clinic_item_code']
+# dummy_df['Percentage Demand'] = dummy_df['Total Demand'] / dummy_df['Total Demand'].sum()
+
+# eligible_rows = [15, 18, 13, 114, 121, 141, 22, 521, 941]
+
+# dummy_df_sliced = dummy_df[dummy_df['Code'].isin(eligible_rows)]
+
+# st.write(dummy_df_sliced['Percentage Demand'].sum()) 
 
 
 # st.divider()

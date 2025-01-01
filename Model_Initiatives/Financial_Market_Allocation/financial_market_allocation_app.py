@@ -5,7 +5,7 @@ from Model_Initiatives.Financial_Market_Allocation import model
 # import model
 import json
 
-def app():
+def app(without_improvement_profit=None):
 
     st.title('Dividend Investment Model')
 
@@ -15,15 +15,15 @@ def app():
     type = st.selectbox("Investment Amount Scheme", ['Fixed','Percentage Profit'], index=1)
 
 
-    # open json
-    with open("Model_Initiatives/Financial_Market_Allocation/without_improvement_profit.json") as f:
-        data = json.load(f)
+    # # open json
+    # with open("Model_Initiatives/Financial_Market_Allocation/without_improvement_profit.json") as f:
+    #     data = json.load(f)
 
     forecast_period = st.number_input("Forecast Period (months)", value=12, step=1)
         
 
         
-    data = data[:forecast_period]
+    data = without_improvement_profit[:forecast_period]
 
     first_investment = st.date_input("First Investment Date", pd.Timestamp("2025-01-01"))
     periodic_investment = st.number_input("Monthly Investment ($)", value=1000, step=100) if type == 'Fixed' else data

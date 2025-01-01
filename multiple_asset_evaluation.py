@@ -32,6 +32,10 @@ def app():
                 }
 
         return result
+    
+    
+
+
 
 
 
@@ -115,6 +119,10 @@ def app():
             clinic_json = process_multiple_dfs(clinic_data)
             pool_clinic[clinic_name] = clinic_json
 
+
+
+
+        
 
         # # Parse the response
         # if response.status_code == 200:

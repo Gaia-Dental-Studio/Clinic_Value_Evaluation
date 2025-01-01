@@ -567,11 +567,25 @@ class ModelForecastPerformance:
         
         return forecast_treatment_df
 
-    def generate_forecast_item_code_by_profit(self, item_code_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None, OHT_salary=35, specialist_salary=125):
+    def generate_forecast_item_code_by_profit(self, item_code_df, cashflow_df, demand_history, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None, OHT_salary=35, specialist_salary=125):
 
         # Note no dentist, only OHT and Specialist
         
         item_code_df['COGS Salary AUD'] = item_code_df.apply(lambda row: OHT_salary * row['duration'] / 60 if row['medical_officer_new'] == 'OHT' else specialist_salary * row['duration'] / 60, axis=1)
+        
+# Extract and safely format the codes
+        demand_codes = demand_history['Code'].values
+        demand_codes = [f"{int(code):03}" for code in demand_codes if str(code).isdigit()]
+
+        
+        # print(demand_codes)
+        # print(f"Number of demand codes: {len(demand_codes)}")
+        
+        demand_probs = (demand_history['Total Demand'] / demand_history['Total Demand'].sum()).values
+        
+        # print(demand_probs)
+        # print(f"Number of demand probs: {len(demand_probs)}")
+        
         
         # Define which columns to use for revenue and expense based on the basis
         if basis == "Australia":
@@ -615,13 +629,31 @@ class ModelForecastPerformance:
             # Select random treatments until profit is within the tolerance
             while True:
                 # Randomly select a treatment, making sure it hasn't been discarded
-                available_treatments = item_code_df[~item_code_df['item_number'].isin(discarded_treatments)]
                 
-                # If no valid treatments remain, break the loop
-                if available_treatments.empty:
+                
+                # print(f"Unique item codes: {item_code_df['item_number'].unique()}")
+                
+                filtered_treatments = item_code_df[
+                    (item_code_df['item_number'].isin(demand_codes)) &
+                    (~item_code_df['item_number'].isin(discarded_treatments))
+                ]
+
+                # Step 2: Ensure we have treatments left after filtering
+                if filtered_treatments.empty:
                     break
-                
-                selected_treatment = available_treatments.sample(n=1).iloc[0]
+
+                # Step 3: Map the remaining treatments to their probabilities
+                filtered_codes = filtered_treatments['item_number'].values
+                filtered_probs = [demand_probs[demand_codes.index(code)] for code in filtered_codes]
+
+                # Normalize probabilities in case some demand_probs are excluded
+                filtered_probs = np.array(filtered_probs) / np.sum(filtered_probs)
+
+                # Step 4: Sample one item using the probabilities
+                selected_code = np.random.choice(filtered_codes, p=filtered_probs)
+
+                # Step 5: Retrieve the selected treatment row
+                selected_treatment = filtered_treatments[filtered_treatments['item_number'] == selected_code].iloc[0]
                 
                 treatment_revenue = selected_treatment[revenue_col]
                 treatment_expense = selected_treatment[expense_col] + selected_treatment[salary_expense_col]
@@ -658,6 +690,9 @@ class ModelForecastPerformance:
         
         # Create a DataFrame from the forecast data
         forecast_treatment_df = pd.DataFrame(forecast_data)
+        
+        # print(forecast_treatment_df)
+        
         
         # sort by 'Period' column of date 
         forecast_treatment_df['Period'] = pd.to_datetime(forecast_treatment_df['Period'], format='%d-%m-%Y')
@@ -700,6 +735,41 @@ class ModelForecastPerformance:
         return generated_date
 
 
+    def generate_date_from_month_year(self, month_year, method='random'):
+        """
+        Generate a date based on the given Month-Year in 'YYYY-MM' format.
+
+        Args:
+            month_year (str): The Month-Year string in 'YYYY-MM' format.
+            method (str): The method for selecting the day. Options: 'random', 'first_day', 'last_day'.
+
+        Returns:
+            datetime: The generated date object.
+        """
+        # Parse the 'YYYY-MM' format
+        year, month = map(int, month_year.split('-'))
+
+        # Get the number of days in the given month and year
+        days_in_month = calendar.monthrange(year, month)[1]
+
+        if method == 'random':
+            # Generate a random day within the valid range for the month
+            day = random.randint(1, days_in_month)
+        elif method == 'last_day':
+            # Set the day to the last day of the month
+            day = days_in_month
+        elif method == 'first_day':
+            # Set the day to the first day of the month
+            day = 1
+        else:
+            raise ValueError("Invalid method. Choose 'random', 'last_day', or 'first_day'.")
+
+        # Format the date as dd-mm-yyyy
+        generated_date = date(year, month, day)
+
+        return generated_date
+        
+    
 
     def forecast_revenue_expenses_MA_by_profit(self, historical_data_df, number_of_forecasted_periods, MA_period, treatment_df, basis="Australia", tolerance=0.1, start_month=1):
         """
