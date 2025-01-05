@@ -1,4 +1,5 @@
 import pandas as pd
+import pyomo
 import pyomo.environ as pyo
 from pyomo.opt import SolverFactory
 
@@ -180,5 +181,45 @@ class ModelSupplierSelection:
             'Transportation Cost Total': transportation_cost_total,
             'Overall Cost Total': overall_cost_total
         }
+        
+    def summarize_allocation(self, allocation_df):
+        """
+        Summarizes the allocation configuration into a human-readable paragraph for each clinic.
+
+        Parameters:
+            allocation_df (pd.DataFrame): A DataFrame with columns 'Clinic', 'Material', 'Supplier'.
+
+        Returns:
+            str: A formatted summary of the allocation configuration.
+        """
+
+
+        # Validate input DataFrame
+        if not set(['Clinic', 'Material', 'Supplier']).issubset(allocation_df.columns):
+            raise ValueError("The DataFrame must contain 'Clinic', 'Material', and 'Supplier' columns.")
+
+        # Group by Clinic and Supplier and aggregate materials
+        grouped = (
+            allocation_df.groupby(['Clinic', 'Supplier'])
+            .agg({'Material': lambda x: ', '.join(sorted(x))})
+            .reset_index()
+        )
+
+        # Initialize the summary string
+        summary = ""
+
+        # Iterate through each clinic and create its paragraph
+        for clinic in grouped['Clinic'].unique():
+            clinic_df = grouped[grouped['Clinic'] == clinic]
+            allocations = []
+
+            for _, row in clinic_df.iterrows():
+                allocations.append(f"Supplier {row['Supplier']} for Material {row['Material']}")
+
+            clinic_summary = f"For Clinic {clinic}, we need to do procurement using {', '.join(allocations)}."
+            summary += clinic_summary + "\n\n"
+
+        # Return the summary, stripping the final newline
+        return summary.strip()
 
 

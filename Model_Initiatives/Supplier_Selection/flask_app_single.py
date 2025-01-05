@@ -59,6 +59,11 @@ def optimize():
 
         # Serialize allocation if present
         if comparison['Allocation'] is not None:
+            
+            summary_allocation = model.summarize_allocation(comparison['Allocation'])
+            # print(summary_allocation)
+
+            
             comparison['Allocation'] = comparison['Allocation'].to_json(orient='split')
 
         # Return results
@@ -66,7 +71,8 @@ def optimize():
             'Baseline Best Solution': comparison['Baseline Best Solution'],
             'New Solution Value': comparison['New Solution Value'],
             'Opportunity Gain': comparison['Opportunity Gain'],
-            'Allocation': comparison['Allocation']
+            'Allocation': comparison['Allocation'],
+            'Summary Allocation': summary_allocation
         })
 
     # except Exception as e:
