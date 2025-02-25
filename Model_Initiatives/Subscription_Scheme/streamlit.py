@@ -14,7 +14,7 @@ def app(transaction_df):
     col1, col2 = st.columns(2)
 
     with col1:
-        subscription_fee = st.number_input("Subscription Fee ($)", value=200, step=10)
+        subscription_fee = st.number_input("Subscription Fee ($)", value=50, step=10)
         days_until_inactive = st.number_input("Days Until Inactive", value=90, step=10)
         
     with col2:
@@ -38,7 +38,7 @@ def app(transaction_df):
     # sum the treatment percentage of the eligible treatments compared to the total
 
     
-    st.write(total)
+    # st.write(total)
       
       
     if st.button("Calculate Subscription Scheme"):  

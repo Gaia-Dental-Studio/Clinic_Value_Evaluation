@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import plotly.express as px
-
+import plotly.graph_objects as go
 
 # class ModelTransformData:
 #     def __init__(self, transaction_data, indirect_expense_data):
@@ -698,4 +698,130 @@ class ModelClinicValue:
         )
 
         # Return the Plotly figure object
+        return fig
+    
+    
+    
+    
+    # ANALYTICS METHOD GOES HER
+
+
+
+    def plot_diverging_bar_chart(self, df):
+        """
+        Generates a diverging stacked bar chart using Plotly, where negative values extend left (red)
+        and positive values extend right (blue), with labels inside the bars.
+        
+        Args:
+            df (pd.DataFrame): A pandas DataFrame with columns ['Metric', 'Negative', 'Positive'].
+
+        Returns:
+            fig (plotly.graph_objects.Figure): A Plotly figure object.
+        """
+        fig = go.Figure()
+
+        # Add Negative values (left side, red)
+        fig.add_trace(go.Bar(
+            y=df["Metric"],
+            x=df["Negative"],  # Negative values should go left
+            name="Negative",
+            orientation="h",
+            marker=dict(color="#ff3d5a"),
+            text=[f"{-val:.2f}" if val != 0 else "" for val in df["Negative"]],  # Show labels for negative values
+            textposition="inside",
+            insidetextanchor="middle",
+            hovertemplate="%{y}: %{x}<extra></extra>"
+        ))
+
+        # Add Positive values (right side, blue)
+        fig.add_trace(go.Bar(
+            y=df["Metric"],
+            x=df["Positive"],  # Positive values should go right
+            name="Positive",
+            orientation="h",
+            marker=dict(color="#439ecb"),
+            text=[f"{val:.2f}" if val != 0 else "" for val in df["Positive"]],  # Show labels for positive values
+            textposition="inside",
+            insidetextanchor="middle",
+            hovertemplate="%{y}: %{x}<extra></extra>"
+        ))
+
+        # Customize layout
+        fig.update_layout(
+            title="Current Clinic Performance (% Relative to Baseline)",
+            barmode="relative",  # Ensures stacking effect
+            xaxis=dict(title="Value", zeroline=True, zerolinewidth=2, zerolinecolor='black'),
+            yaxis=dict(title="Metric", autorange="reversed"),  # Reverse so first row appears at top
+            legend=dict(title="Legend"),
+            template="plotly_white"
+        )
+
+        return fig
+
+
+
+
+
+    def plot_waterfall_chart(self, df):
+        """
+        Generates a Plotly waterfall chart showing changes in EBIT Multiple, 
+        with labels inside the bars displaying 'Change' values. 
+        A final cumulative bar is added at the rightmost position.
+        
+        Args:
+            df (pd.DataFrame): A DataFrame with columns ['Category', 'Change'].
+            
+        Returns:
+            fig (plotly.graph_objects.Figure): A Plotly figure object.
+        """
+        # Initialize waterfall values
+        values = df["Change"].tolist()
+        categories = df["Category"].tolist()
+
+        # Calculate intermediate positions for waterfall effect
+        base = [0]  # Initial baseline
+        cumulative = [values[0]]  # First value starts at baseline
+        
+        for i in range(1, len(values)):
+            base.append(base[-1] + cumulative[-1])  # Start point of each bar
+            cumulative.append(values[i])  # Add next change
+
+        # Compute final cumulative value
+        final_value = sum(values)
+        final_base = base[-1] + cumulative[-1]  # Starting position for final bar
+
+        # Append final bar details
+        categories.append("Current Clinic EBIT Multiple")
+        values.append(final_value)
+        base.append(0)  # The final bar should start at 0
+
+        # Define colors: blue for positive, red for negative, gray for final bar
+        colors = ["#439ecb" if val >= 0 else "#ff3d5a" for val in values[:-1]]
+        colors.append("#7f7f7f")  # Gray for the final cumulative bar
+
+        # Create Waterfall Chart
+        fig = go.Figure()
+
+        for i in range(len(categories)):
+            fig.add_trace(go.Bar(
+                x=[categories[i]],
+                y=[values[i]],
+                base=[base[i]],  # Start position
+                name=categories[i],
+                marker=dict(color=colors[i]),
+                text=f"{values[i]:.2f}",  # Format change value inside the bar
+                textposition="inside",  # Place labels inside bars
+                insidetextanchor="middle",  # Keep text centered
+                hovertemplate="%{x}: %{y}<extra></extra>"
+            ))
+
+        # Customize layout
+        fig.update_layout(
+            title="Waterfall Chart - EBIT Multiple Changes",
+            xaxis=dict(title="Category"),
+            yaxis=dict(title="Change"),
+            showlegend=False,
+            template="plotly_white"
+        )
+
         return fig

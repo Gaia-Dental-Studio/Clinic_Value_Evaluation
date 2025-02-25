@@ -185,6 +185,12 @@ def app():
         with col4:
             fig = model_plot.cashflow_plot(number_of_days=365 , granularity='quarterly', start_date='2025-01-01')
             st.plotly_chart(fig)
+            
+        
+        collection_dataframe = {}
+        collection_dataframe['All Data'] = model_plot.collection_df.copy()
+        
+        st.plotly_chart(model_plot.cashflow_plot_cumulative_only(number_of_days=365, granularity='monthly', start_date='2025-01-01', collection_dataframe=collection_dataframe), key="cumulative line multiple")
         
         
         

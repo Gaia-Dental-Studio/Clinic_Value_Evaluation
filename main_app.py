@@ -99,39 +99,40 @@ def app():
             base_ebit_multiple = 2.5
             st.metric("EBIT Multiple", base_ebit_multiple)
     # File upload widget
-    # uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
+    uploaded_file = st.file_uploader("Upload your company document", type=["csv", "xlsx", "docx", "pdf"])
     
     # uploaded_file = st.selectbox("Choose Clinic", ["Acre Clarity Dental"], index=0)
     
-    # Dummy Data
+    # # Dummy Data
     
-    # case example is dataset 1
+    # # case example is dataset 1
     
-    dataset = st.selectbox("Choose Dataset", ["Dataset 1", "Dataset 2", "Dataset 3"], index=0)
+    # dataset = st.selectbox("Choose Dataset", ["Dataset 1", "Dataset 2", "Dataset 3"], index=0)
     
-    # update the dataset value to only take the number
-    dataset = int(dataset.split()[-1])
+    # # update the dataset value to only take the number
+    # dataset = int(dataset.split()[-1])
     
-    # read pkl file
-    with open(f'dummy_clinic_model/pkl_files/dataset_{dataset}/pool_clinic_df.pkl', 'rb') as f:
-        pool_clinic_df = pickle.load(f)
+    # # read pkl file
+    # with open(f'dummy_clinic_model/pkl_files/dataset_{dataset}/pool_clinic_df.pkl', 'rb') as f:
+    #     pool_clinic_df = pickle.load(f)
     
-    uploaded_file = st.selectbox("Choose Clinic", list(pool_clinic_df.keys()), index=0)
+    # uploaded_file = st.selectbox("Choose Clinic", list(pool_clinic_df.keys()), index=0)
     
 
 
     # Initialize the ModelClinicValue class
     model = ModelClinicValue({})
     
-    transaction_df = pool_clinic_df[uploaded_file]['Gross Profit']
-    indirect_cost_df = pool_clinic_df[uploaded_file]['Indirect Cost']
-    model_transform = ModelTransformTransactionData(transaction_df, indirect_cost_df)
-    transformed_uploaded_file = model_transform.prepare_all_data()
+    # IF DUMMY DATA, PLEASE UNCOMMENT THIS
+    # transaction_df = pool_clinic_df[uploaded_file]['Gross Profit']
+    # indirect_cost_df = pool_clinic_df[uploaded_file]['Indirect Cost']
+    # model_transform = ModelTransformTransactionData(transaction_df, indirect_cost_df)
+    # transformed_uploaded_file = model_transform.prepare_all_data()
     
     
     # If a file is uploaded, update the model variables with data from the file
-    if uploaded_file:
-        model.update_variable_from_uploaded_dictionary(transformed_uploaded_file)
+    # if uploaded_file:
+    #     model.update_variable_from_uploaded_dictionary(transformed_uploaded_file)
         # Previously were
         # model.update_variable_from_uploaded_file(transformed_uploaded_file)
     
@@ -140,7 +141,7 @@ def app():
     #     uploaded_file = r'company_data/Acre Data.xlsx'
     #     model.update_variable_from_uploaded_file(uploaded_file)      
 
-
+    model.update_variable_from_uploaded_file(uploaded_file)      
 
     # Section for manual input of company variables
     st.header("Set Company Variable")
@@ -346,6 +347,9 @@ def app():
         
         
         dentist_availability = st.data_editor(dentist_availability, num_rows='dynamic')
+        
+        
+        
         st.caption("Please change the Dentist Provider in accordance to the clinic's dentist ID if necessary")
         
         # with col1:
@@ -415,6 +419,7 @@ def app():
             
             with col1:
                 st.metric("EBIT", f"$ {model.ebit:,.0f}", delta=f"{model.ebit - base_ebit:,.0f}")
+                
                 
             with col2:
                 st.metric("EBIT Ratio", f"{model.ebit_ratio * 100:.2f}%", delta=f"{(model.ebit_ratio - base_ebit_ratio)*100:.2f}%")
@@ -514,6 +519,7 @@ def app():
                 with st.popover("details"):
                     df_risk = dentist_availability[dentist_availability['Possibly Leaving?'] == True][['Dentist Provider', 'Sales Contribution ($)']]
                 
+                    percentage_risk_to_sales = df_risk['Sales Contribution ($)'].sum() / dentist_availability['Sales Contribution ($)'].sum()
                     
                     st.dataframe(df_risk, hide_index=True)
                     st.write("Above is the list of dentist that possibly leaving the clinic, with their sales contribution to the clinic. This sales contribution is equivalent to the percentage of expected revenue reduction due their leaving.")
@@ -602,11 +608,17 @@ def app():
             'Equipment Life': company_variables.get('Equipment Life', None)
             
         }
-
+        
+        output_variables['Gross Profit'] = output_variables['Net Sales'] + output_variables['COGS']
         output_variables['EBIT'] = model.ebit
         output_variables['EBIT Ratio'] = model.ebit_ratio
         output_variables['General Expense'] = output_variables['Operational Expense'] + output_variables['Other Expense'] + output_variables['Advertising & Promotion Expense']
-        output_variables['Patient Pool'] = transaction_df['Patient ID'].unique().tolist()
+        
+        if 'transaction_df' not in locals():
+            transaction_df = pd.DataFrame()
+        patient_pool = transaction_df['Patient ID'].unique().tolist() if not transaction_df.empty else [f"Patient {i}" for i in range(1, number_of_active_patients+1)]
+        
+        output_variables['Patient Pool'] = patient_pool
         
         # output_variables['Operating Income'] = output_variables['Net Sales'] + output_variables['Trading Income'] + output_variables['Other Income'] + output_variables['Interest Revenue of Bank'] + output_variables['COGS'] + output_variables['Advertising & Promotion Expense'] + output_variables['Operational Expense'] + output_variables['Other Expense']
 
@@ -614,26 +626,109 @@ def app():
         output_df = pd.DataFrame([output_variables])
         output_df.to_csv('output_variables.csv', index=False)
         
+        st.divider()
+        
+        st.markdown("## Variable Summary Analytics")
+        
+        compared_ebit = (model.ebit - base_ebit) / base_ebit * 100
+        compared_ebit_ratio = (model.ebit_ratio - base_ebit_ratio) / base_ebit_ratio * 100
+        compared_net_sales_growth =  (net_sales_growth - base_net_sales_growth) / base_net_sales_growth * 100
+        compared_relative_variability_net_sales = - (relative_variability_net_sales - base_relative_variability_net_sales) / base_relative_variability_net_sales * 100
+        compared_equipment_usage_ratio = (equipment_usage_ratio - base_equipment_usage_ratio) / base_equipment_usage_ratio * 100
+        compared_number_of_active_patients = (number_of_active_patients - base_number_of_active_patients) / base_number_of_active_patients * 100
+        compared_relative_variability_patient_spending = - (relative_variability_patient_spending - base_relative_variability_patient_spending) / base_relative_variability_patient_spending * 100
+        compared_risk_of_leaving_dentist = -percentage_risk_to_sales * 100
+        compared_fitout_value = (fitout_value - base_fitout_cost) / base_fitout_cost * 100
+        compared_last_fitout = (last_fitout - base_last_fitout) / base_last_fitout * 100    
+        
+        # if compared_risk_of_leaving_dentist is inf then 0
+        compared_risk_of_leaving_dentist = 0 if np.isinf(compared_risk_of_leaving_dentist) else compared_risk_of_leaving_dentist
+        
+        
+        # Create the initial DataFrame
+        
+        df_diverging_bar = pd.DataFrame([['EBIT', compared_ebit if compared_ebit < 0 else 0, compared_ebit if compared_ebit >= 0 else 0]], columns=['Metric', 'Negative', 'Positive'])
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'EBIT Ratio', 'Negative': compared_ebit_ratio if compared_ebit_ratio < 0 else 0, 'Positive': compared_ebit_ratio if compared_ebit_ratio >= 0 else 0 }])], ignore_index=True)
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Year-on-Year Growth', 'Negative': compared_net_sales_growth if compared_net_sales_growth < 0 else 0, 'Positive': compared_net_sales_growth if compared_net_sales_growth >= 0 else 0 }])], ignore_index=True)
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Relative Variability of Net Sales', 'Negative': compared_relative_variability_net_sales if compared_relative_variability_net_sales < 0 else 0, 'Positive': compared_relative_variability_net_sales if compared_relative_variability_net_sales >= 0 else 0 }])], ignore_index=True)
+        # df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Equipment Usage Ratio', 'Negative': compared_equipment_usage_ratio if compared_equipment_usage_ratio < 0 else 0, 'Positive': compared_equipment_usage_ratio if compared_equipment_usage_ratio >= 0 else 0 }])], ignore_index=True)
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Number of Active Patients', 'Negative': compared_number_of_active_patients if compared_number_of_active_patients < 0 else 0, 'Positive': compared_number_of_active_patients if compared_number_of_active_patients >= 0 else 0 }])], ignore_index=True)
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Relative Variability of Patient Spending', 'Negative': compared_relative_variability_patient_spending if compared_relative_variability_patient_spending < 0 else 0, 'Positive': compared_relative_variability_patient_spending if compared_relative_variability_patient_spending >= 0 else 0 }])], ignore_index=True)
+        df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Risk of Leaving Dentist', 'Negative': compared_risk_of_leaving_dentist if compared_risk_of_leaving_dentist < 0 else 0, 'Positive': compared_risk_of_leaving_dentist if compared_risk_of_leaving_dentist >= 0 else 0 }])], ignore_index=True)
+        # df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Fit Out Value', 'Negative': compared_fitout_value if compared_fitout_value < 0 else 0, 'Positive': compared_fitout_value if compared_fitout_value >= 0 else 0 }])], ignore_index=True)
+        # df_diverging_bar = pd.concat([df_diverging_bar, pd.DataFrame([{'Metric': 'Last Fit Out', 'Negative': compared_last_fitout if compared_last_fitout < 0 else 0, 'Positive': compared_last_fitout if compared_last_fitout >= 0 else 0 }])], ignore_index=True)
+        
+        
+        # st.dataframe(df_diverging_bar, hide_index=True)
+        
+        # print(df_diverging_bar)
 
+        fig_compared = model.plot_diverging_bar_chart(df_diverging_bar)
+        
+        st.plotly_chart(fig_compared)
+        
+        
+        # WATERFALL FOR EBIT
+        
+        ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
+        
+        diff_ebit_multiple_of_growth = ebit_multiple - base_ebit_multiple
+        
+        # st.write(ebit_multiple)
+        equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)
+        
+        
+        fitout_adjusting_value = model.fitout_adjusting_value(output_variables['Fitout Value'], output_variables['Last Fitout Year'], base_fitout_cost, base_last_fitout)
+
+        prior_ebit_multiple = ebit_multiple
+
+        ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Risk of Leaving Dentist'])
+        
+        diff_ebit_multiple_of_leaving_dentist = ebit_multiple - prior_ebit_multiple
+        
+        prior_ebit_multiple = ebit_multiple
+        
+        ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
+        # st.write(ebit_multiple)
+        diff_ebit_multiple_of_net_sales_variation = ebit_multiple - prior_ebit_multiple
+        
+        prior_ebit_multiple = ebit_multiple
+        
+        ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
+        
+        diff_ebit_multiple_of_patient_based = ebit_multiple - prior_ebit_multiple
+        
+        # st.write(ebit_multiple)
+        clinic_valuation = ebit_multiple * model.ebit
+        
+        
+        df_waterfall_ebit_multiple = pd.DataFrame([['Baseline EBIT Multiple', base_ebit_multiple],
+                                                   ['YoY Growth', diff_ebit_multiple_of_growth],
+                                                   ['Dentist Leaving Risk', diff_ebit_multiple_of_leaving_dentist],
+                                                   ['Net Sales Variation', diff_ebit_multiple_of_net_sales_variation],
+                                                   ['Patient-Based', diff_ebit_multiple_of_patient_based]],
+                                                  columns=['Category', 'Change'])
+        
+        # st.dataframe(df_waterfall_ebit_multiple)
+        
+        fig_waterfall_ebit_multiple = model.plot_waterfall_chart(df_waterfall_ebit_multiple)
+        
+        st.plotly_chart(fig_waterfall_ebit_multiple)
+        
         
         st.divider()
         
         st.markdown("## Clinic Value")
         
         st.markdown("#### Calculating Current Clinic Value")
-        st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Current Value Calculation Step'** tab")
+        # st.write("To understand the calculation logic and approach used for this model of clinic evaluation, please refer to side navigation bar and click on the **'Current Value Calculation Step'** tab")
 
-        ebit_multiple = model.ebit_baseline_to_multiple(output_variables['Net Sales Growth'])
-        # st.write(ebit_multiple)
-        equipment_adjusting_value = model.equipment_adjusting_value(output_variables['Total Remaining Value'], base_equipment_value, base_equipment_usage_ratio)
-        fitout_adjusting_value = model.fitout_adjusting_value(output_variables['Fitout Value'], output_variables['Last Fitout Year'], base_fitout_cost, base_last_fitout)
 
-        ebit_multiple = model.ebit_multiple_adjustment_due_dentist(ebit_multiple, output_variables['Risk of Leaving Dentist'])
-        ebit_multiple = model.ebit_multiple_adjustment_due_net_sales_variation(ebit_multiple, output_variables['Relative Variation of Net Sales'])
-        # st.write(ebit_multiple)
-        ebit_multiple = model.ebit_multiple_adjustment_due_number_patient_and_patient_spending_variability(ebit_multiple, output_variables['Number of Active Patients'], output_variables['Relative Variation of Patient Spending'])
-        # st.write(ebit_multiple)
-        clinic_valuation = ebit_multiple * model.ebit
+        
+        
+        
+        
+        
         
         col1, col2 = st.columns(2)
         
@@ -669,50 +764,92 @@ def app():
         
         
 
-
-        with open('clinic_value.pkl', 'wb') as f:
+        with open('single_clinic_value.pkl', 'wb') as f:
             pickle.dump(output_variables, f)
             
-        file_name = 'clinic_value_set.pkl'
-        ID = uploaded_file
+            
+# Save all baseline values
 
-        # Initialize or load existing dictionary
-        if os.path.exists(file_name):
-            # Load existing data
-            with open(file_name, 'rb') as f:
-                output_variables_set = pickle.load(f)
-        else:
-            # Start with an empty dictionary
-            output_variables_set = {}
+        baseline_values = {
+            'EBIT': base_ebit,
+            'Equipments Value': base_equipment_value,
+            'Net Sales Growth': base_net_sales_growth,
+            'Number of Active Patients': base_number_of_active_patients,
+            'Relative Variation of Patient Spending': base_relative_variability_patient_spending,
+            'Risk of Leaving Dentist': base_risk_of_leaving_dentist,
+            'Fitout Value': base_fitout_cost,
+            'Last Fitout Year': base_last_fitout,
+            'EBIT Ratio': base_ebit_ratio,
+            'Relative Variability of Net Sales': base_relative_variability_net_sales,
+            'Equipment Usage Ratio': base_equipment_usage_ratio,
+            'EBIT Multiple': base_ebit_multiple
+            
+        }
+        
+        with open('baseline_values.pkl', 'wb') as f:
+            pickle.dump(baseline_values, f)
+        
             
             
-
-
-
-        # Update or add the new data
-        output_variables_set[ID] = output_variables
-
-        # Save the updated dictionary back to the file
-        with open(file_name, 'wb') as f:
-            pickle.dump(output_variables_set, f)
-            
-            
-    st.divider()
-            # Define the file name
-    file_name = 'clinic_value_set.pkl'
-    ID = uploaded_file
-
-    # Initialize or load existing dictionary
-    if os.path.exists(file_name):
-        # Load existing data
-        with open(file_name, 'rb') as f:
-            output_variables_set = pickle.load(f)
-    else:
-        # Start with an empty dictionary
-        output_variables_set = {}
+        
+        st.success("Clinic Value has been calculated and saved successfully")
+                
+        
+        # st.write(f"EBIT: {model.ebit:,.0f}")
+        # st.write(f"Net Sales: {output_variables['Net Sales']:,.0f}")
+        # st.write(f"COGS: {output_variables['COGS']:,.0f}")
+        # st.write(f"Gross Profit: {output_variables['Gross Profit']:,.0f}")
         
         
+        
+        # st.write(output_variables)
+        
 
+# Start session state for pkl of dummy data
+
+    #     with open('clinic_value.pkl', 'wb') as f:
+    #         pickle.dump(output_variables, f)
+            
+    #     file_name = 'clinic_value_set.pkl'
+    #     ID = uploaded_file
+
+    #     # Initialize or load existing dictionary
+    #     if os.path.exists(file_name):
+    #         # Load existing data
+    #         with open(file_name, 'rb') as f:
+    #             output_variables_set = pickle.load(f)
+    #     else:
+    #         # Start with an empty dictionary
+    #         output_variables_set = {}
+            
+            
+
+
+
+    #     # Update or add the new data
+    #     output_variables_set[ID] = output_variables
+
+    #     # Save the updated dictionary back to the file
+    #     with open(file_name, 'wb') as f:
+    #         pickle.dump(output_variables_set, f)
+            
+            
+    # st.divider()
+    #         # Define the file name
+    # file_name = 'clinic_value_set.pkl'
+    # ID = uploaded_file
+
+    # # Initialize or load existing dictionary
+    # if os.path.exists(file_name):
+    #     # Load existing data
+    #     with open(file_name, 'rb') as f:
+    #         output_variables_set = pickle.load(f)
+    # else:
+    #     # Start with an empty dictionary
+    #     output_variables_set = {}
+        
+        
+# End Section for pkl of dummy data
 
 
     # # Update or add the new data
@@ -723,10 +860,10 @@ def app():
     #     pickle.dump(output_variables_set, f)
         
         
-    # st.write the keys of the output_variables_set dictionary
-    st.write("Saved Clinic Evaluation")
-    st.write("The following clinic evaluations have been saved:")
-    st.write(list(output_variables_set.keys()))
+    # # st.write the keys of the output_variables_set dictionary
+    # st.write("Saved Clinic Evaluation")
+    # st.write("The following clinic evaluations have been saved:")
+    # st.write(list(output_variables_set.keys()))
                     
             
 

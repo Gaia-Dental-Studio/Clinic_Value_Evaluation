@@ -98,7 +98,7 @@ class ModelGroupDiscount:
                 # Skip groups with fewer than 2 members
                 continue
             
-            if group_size >= max_group_size:
+            if group_size > max_group_size:
                 # Skip groups with more than 4 members
                 continue
 

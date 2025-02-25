@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 from model_supplier_selection import ModelSupplierSelection  # Ensure the model is accessible here
+import json
 
 app = Flask(__name__)
 
@@ -53,18 +54,27 @@ def optimize():
         if last_optimal_allocation is not None:
         
             comparison = model.comparison_to_previous_optimal(last_optimal_allocation)
+            
+            print("PREVIOUS OPTIMAL ALLOCATION NOT NONE")
         
         else:
             comparison = model.comparison_to_previous_optimal()
+            print("PREVIOUS OPTIMAL ALLOCATION NONE")
 
         # Serialize allocation if present
         if comparison['Allocation'] is not None:
             
             summary_allocation = model.summarize_allocation(comparison['Allocation'])
-            # print(summary_allocation)
+            if not isinstance(summary_allocation, str):
+           
+                summary_allocation = json.dumps(summary_allocation)  # Ensure it's a JSON string
+ 
 
-            
             comparison['Allocation'] = comparison['Allocation'].to_json(orient='split')
+            
+        else:
+            summary_allocation = None  # Default value if no allocation       
+            
 
         # Return results
         return jsonify({

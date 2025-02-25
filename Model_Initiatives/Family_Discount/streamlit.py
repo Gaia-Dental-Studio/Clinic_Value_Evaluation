@@ -26,7 +26,7 @@ def app(transaction_df):
         discount_increment = st.number_input("Discount Increment", value = 5, step=1, help="Discount increment for every +1 added member in a family member") 
         discount_increment /= 100
         
-    pmf_family_sizes = {1: 0.4, 2: 0.3, 3: 0.2, 4: 0.1}
+    pmf_family_sizes = {1: 0.4, 2: 0.3, 3: 0.2, 4: 0.05, 5: 0.05}
     
     if st.button("Calculate", key="calculate_family_discount"):
         

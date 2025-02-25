@@ -1,7 +1,7 @@
-Clinic,Supplier,Material
-N0001,Supplier 1,Material 1
-N0001,Supplier 1,Material 4
-N0001,Supplier 3,Material 5
-N0001,Supplier 6,Material 2
-N0001,Supplier 6,Material 3
-N0001,Supplier 6,Material 6
+Clinic,Material,Supplier
+N0001,Material 4,Supplier 1
+N0001,Material 5,Supplier 3
+N0001,Material 1,Supplier 6
+N0001,Material 2,Supplier 6
+N0001,Material 3,Supplier 6
+N0001,Material 6,Supplier 6

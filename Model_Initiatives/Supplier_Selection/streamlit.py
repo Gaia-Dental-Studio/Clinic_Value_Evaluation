@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 import requests
 
-
 # Dynamically adjust sys.path to ensure imports work in any execution context
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
@@ -117,6 +116,8 @@ if st.button("Optimize"):
         st.write("Baseline Best Solution:", result['Baseline Best Solution'])
         st.write("New Solution Value:", result['New Solution Value'])
         st.write("Opportunity Gain:", result['Opportunity Gain'])
+        
+        allocation_df = None
 
         if result['Allocation'] is not None:
             # Deserialize and ensure Clinic is a column
@@ -131,7 +132,7 @@ if st.button("Optimize"):
             # Display the allocation results
             st.dataframe(allocation_df, use_container_width=True)
 
-        allocation_df.to_csv('last_optimal_alloaction_single_clinic.csv', index=False)
+        allocation_df.to_csv('last_optimal_alloaction_single_clinic.csv', index=False) if allocation_df is not None else None
 
     # col1, col2, col3 = st.columns(3)
 

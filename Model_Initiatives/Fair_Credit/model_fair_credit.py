@@ -35,15 +35,33 @@ class ModelFairCredit:
             amortization_schedule['Expense'] = 0
             amortization_schedule['Customer ID'] = row['Customer ID']
             
-            # Adjust the revenue for the specific row only
-            mask = (
-                (adjusted_original_transaction['Customer ID'] == row['Customer ID']) &
-                (adjusted_original_transaction['Revenue'] == row['Revenue']) &
-                (~adjusted_original_transaction['Adjusted'])  # Only unadjusted rows
-            )
-            if mask.any():
-                adjusted_original_transaction.loc[mask, 'Revenue'] = row['Revenue'] * self.percentage_downpayment
-                adjusted_original_transaction.loc[mask, 'Adjusted'] = True
+            
+        # CASE: Different Cash Flow
+        
+            # duplicate row of amortization where in the 'Period' is the earliest and append to amortization_schedule
+            amortization_schedule_earliest = amortization_schedule.copy()
+            amortization_schedule_earliest['Period'] = amortization_schedule_earliest['Period'].min()
+            amortization_schedule_earliest = amortization_schedule_earliest.head(1)
+            amortization_schedule_earliest['Revenue'] = row['Revenue'] * self.percentage_downpayment # Downpayment
+            amortization_schedule_earliest['Expense'] = row['Revenue'] # Cashback
+            amortization_schedule = pd.concat([amortization_schedule, amortization_schedule_earliest], ignore_index=True)
+        
+        
+        
+            
+        # CASE: Adjust the Original Cashflow 
+            
+            # # Adjust the revenue for the specific row only
+            # mask = (
+            #     (adjusted_original_transaction['Customer ID'] == row['Customer ID']) &
+            #     (adjusted_original_transaction['Revenue'] == row['Revenue']) &
+            #     (~adjusted_original_transaction['Adjusted'])  # Only unadjusted rows
+            # )
+            # if mask.any():
+            #     adjusted_original_transaction.loc[mask, 'Revenue'] = row['Revenue'] * self.percentage_downpayment
+            #     adjusted_original_transaction.loc[mask, 'Adjusted'] = True
+
+
 
             # Concatenate the amortization schedule to the aggregated schedule
             self.aggregated_amortization_schedule = pd.concat(

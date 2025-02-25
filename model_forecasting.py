@@ -15,7 +15,7 @@ class ModelForecastPerformance:
         
         company_variables = company_variables or {}
         
-        self.ebit = company_variables.get('EBIT', 0)
+        self.gross_profit = company_variables.get('Gross Profit', 0)
         self.net_sales_growth = company_variables.get('Net Sales Growth', 0)
         self.relative_variability_net_sales = company_variables.get('Relative Variation of Net Sales', 0)
         self.ebit_ratio = company_variables.get('EBIT Ratio', 0)
@@ -59,7 +59,7 @@ class ModelForecastPerformance:
         
         
         # Initial EBIT, revenue growth, and indirect cost per month
-        initial_EBIT = self.ebit / 12  # Initial monthly EBIT
+        initial_gross_profit = self.gross_profit / 12  # Initial monthly EBIT
         ebit_growth_monthly = self.net_sales_growth / 12  # Monthly net sales growth
         relative_variation = self.relative_variability_net_sales
         ebit_ratio = self.ebit_ratio
@@ -74,26 +74,34 @@ class ModelForecastPerformance:
             periods = np.arange(start_month, number_of_forecasted_periods + start_month)
             
             # Calculate the deterministic growth component (trend)
-            trend = initial_EBIT * (1 + ebit_growth_monthly) ** periods
+            trend = initial_gross_profit * (1 + ebit_growth_monthly) ** periods
             
             # Introduce random variation based on the relative variation (CV)
             # Coefficient of variation is std/mean, so we introduce noise with appropriate std
-            random_variation = np.random.normal(loc=0, scale=relative_variation, size=number_of_forecasted_periods)
+            from scipy.stats import truncnorm
+            lower_bound = -relative_variation
+            upper_bound = relative_variation
+            random_variation = truncnorm(
+                (lower_bound - 0) / relative_variation, 
+                (upper_bound - 0) / relative_variation, 
+                loc=0, 
+                scale=relative_variation
+            ).rvs(size=number_of_forecasted_periods)
             
             # Combine the trend with the variation, ensuring positive EBIT values
-            ebit_values = trend * (1 + random_variation)
+            gross_profit_values = trend * (1 + random_variation)
             
 
-            total_ebit_after = np.sum(ebit_values) * 12 / number_of_forecasted_periods
+            total_gross_profit_after = np.sum(gross_profit_values) * 12 / number_of_forecasted_periods
             # print("Total EBIT after: ", total_ebit_after)
-            growth = (total_ebit_after - self.ebit) / self.ebit
+            growth = (total_gross_profit_after - self.gross_profit) / self.gross_profit
             # print("New EBIT", total_ebit_after)
             # print("Old EBIT", self.ebit)
             # print("Minimum Growth", minimum_growth)
             # print("Growth: ", growth)
             
-            mean_ebit_values = np.mean(ebit_values)
-            std_ebit_values = np.std(ebit_values)
+            mean_ebit_values = np.mean(gross_profit_values)
+            std_ebit_values = np.std(gross_profit_values)
             
             # print("Coefficient of Variation: ", std_ebit_values / mean_ebit_values)
             
@@ -104,11 +112,21 @@ class ModelForecastPerformance:
         # adjusted_ebit_values = ebit_values * total_growth_factor
         
         # Calculate Revenue (Net Sales) and Expenses (COGS)
-        revenue_values = ebit_values / ebit_ratio  # Net sales derived from EBIT
-        expense_values = revenue_values - ebit_values - indirect_cost  # COGS derived from revenue minus EBIT and indirect costs
+        
+        ebit = gross_profit_values - indirect_cost
+        revenue_values = ebit / ebit_ratio
+        expense_values = revenue_values - ebit - indirect_cost
+        
+        # revenue_values = gross_profit_values / ebit_ratio  # Net sales derived from EBIT
+        # expense_values = revenue_values - gross_profit_values - indirect_cost  # COGS derived from revenue minus EBIT and indirect costs
     
-        
-        
+        # gross profit = revenue - expense
+        # revenue = ebit / ebit ratio
+        # ebit ratio = ebit / revenue
+        # expense = revenue - ebit - indirect cost 
+        # revenue - expense = ebit + indirect cost
+        # gross profit = ebit + indirect cost
+        # ebit = gross profit - indirect cost
         
         # Create a DataFrame for the result
         forecast_df = pd.DataFrame({
@@ -341,7 +359,7 @@ class ModelForecastPerformance:
         
         return amortization_df, round(monthly_payment, 2), round(principal, 2), total_interest
     
-    def generate_forecast_treatment_df(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.05):
+    def generate_forecast_treatment_df(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.025):
         """
         Generates a DataFrame of randomly selected treatments for each period in cashflow_df,
         until the accumulated revenue and expense match the cashflow values within the specified tolerance.
@@ -461,7 +479,7 @@ class ModelForecastPerformance:
         return total_days
 
 
-    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None):
+    def generate_forecast_treatment_df_by_profit(self, treatment_df, cashflow_df, basis="Australia", tolerance=0.025, number_of_unique_patient=1000, start_year=2024, patient_pool=None):
         """
         Generates a DataFrame of randomly selected treatments for each period in cashflow_df,
         until the accumulated profit (Revenue - Expense) matches the cashflow profit within the specified tolerance.
@@ -567,7 +585,7 @@ class ModelForecastPerformance:
         
         return forecast_treatment_df
 
-    def generate_forecast_item_code_by_profit(self, item_code_df, cashflow_df, demand_history, basis="Australia", tolerance=0.1, number_of_unique_patient=1000, start_year=2024, patient_pool=None, OHT_salary=35, specialist_salary=125):
+    def generate_forecast_item_code_by_profit(self, item_code_df, cashflow_df, demand_history, basis="Australia", tolerance=0.025, number_of_unique_patient=1000, start_year=2024, patient_pool=None, OHT_salary=35, specialist_salary=125):
 
         # Note no dentist, only OHT and Specialist
         
@@ -771,7 +789,7 @@ class ModelForecastPerformance:
         
     
 
-    def forecast_revenue_expenses_MA_by_profit(self, historical_data_df, number_of_forecasted_periods, MA_period, treatment_df, basis="Australia", tolerance=0.1, start_month=1):
+    def forecast_revenue_expenses_MA_by_profit(self, historical_data_df, number_of_forecasted_periods, MA_period, treatment_df, basis="Australia", tolerance=0.025, start_month=1):
         """
         Generates a forecast of Revenue and Expenses using a Simple Moving Average (SMA) approach,
         and adjusts based on randomly selected treatments within the specified tolerance.
@@ -1106,7 +1124,7 @@ class ModelForecastPerformance:
         return result
     
     
-    def forecast_revenue_expenses_given_item_code(self, clinic_item_code, cleaned_item_code, forecast_period, target_cov, tolerance=0.1):
+    def forecast_revenue_expenses_given_item_code(self, clinic_item_code, cleaned_item_code, forecast_period, target_cov, tolerance=0.025):
         # Ensure consistent formatting by zero-padding 'Code' to match 'item_number'
         clinic_item_code['Code'] = clinic_item_code['Code'].apply(lambda x: str(x).zfill(3))
         cleaned_item_code['item_number'] = cleaned_item_code['item_number'].astype(str).str.zfill(3)

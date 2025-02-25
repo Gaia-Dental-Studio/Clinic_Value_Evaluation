@@ -5,16 +5,23 @@ import monte_carlo_app
 import potential_value_model
 import current_value_calculation
 import multiple_asset_evaluation
+from dummy_clinic_model import interface
+
 # Using "with" notation
 with st.sidebar:
     page = st.radio(
         "Choose a page",
-        ("Main Calculator", "Current Value Calculation Step", "Sensitivity Analysis", "Potential Value Calculator", "Multiple Asset Evaluation")
+        ("Data Generation Model","Current Value Calculator", 
+        #  "Current Value Calculation Step", "Sensitivity Analysis", 
+         "Potential Value Calculator", "Multiple Asset Evaluation")
     )
 
 # page = st_navbar(["Main Calculator", "Current Value Calculation", "Sensitivity Analysis", "Potential Value Calculator"])
 
-if page == "Main Calculator":
+if page == "Data Generation Model":
+    interface.app()
+
+elif page == "Current Value Calculator":
     main_app.app()
 elif page == "Sensitivity Analysis":
     monte_carlo_app.app()

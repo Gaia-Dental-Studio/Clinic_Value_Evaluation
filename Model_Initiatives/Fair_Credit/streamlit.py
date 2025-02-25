@@ -35,17 +35,17 @@ def app(transaction_data):
         
         aggregated_amortization_schedule, adjusted_original_transaction = model_fair_credit.generate_amortization_schedule()
         
-        st.write('Previous Revenue')
-        st.write(transaction_data['Revenue'].sum())
+        # st.write('Previous Revenue')
+        # st.write(transaction_data['Revenue'].sum())
         
-        st.write('New Revenue')
-        st.write(adjusted_original_transaction['Revenue'].sum())
+        # st.write('New Revenue')
+        # st.write(adjusted_original_transaction['Revenue'].sum())
         
         # st.write('Adjusted:', model_fair_credit.adjusted)
         # st.write('Skipped:', model_fair_credit.skipped)
         
         
-        st.dataframe(adjusted_original_transaction[adjusted_original_transaction['Revenue'] == 0])
+        # st.dataframe(adjusted_original_transaction[adjusted_original_transaction['Revenue'] == 0])
         
         
         grouped_amortization_schedule = model_fair_credit.group_by_period()
